@@ -9,7 +9,7 @@ import { ROUTES } from "@/constants";
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState("anna@example.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,65 +18,87 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const ok = await login(email, password);
+    const loggedInUser = await login(email, password);
     setLoading(false);
-    if (ok) {
-      router.push(ROUTES.DASHBOARD);
+    if (loggedInUser) {
+      if (loggedInUser.accountRole === "ADMIN") {
+        router.push(ROUTES.ADMIN_MANAGE_USERS);
+      } else {
+        router.push(ROUTES.DASHBOARD);
+      }
     } else {
       setError("Invalid email or password.");
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-brand-50 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm"
-      >
-        <h1 className="mb-1 text-2xl font-bold text-brand-900">Casha-Ba</h1>
-        <p className="mb-6 text-sm text-gray-500">Welcome back. Log in to continue.</p>
+    <div className="min-h-screen bg-[#eef2ef] flex flex-col font-sans">
+      {/* Top Banner Tag */}
+      <div className="bg-[#dcdfdc] px-8 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
+        USER LOGIN
+      </div>
 
-        <label className="mb-1 block text-xs font-semibold text-gray-600">Email</label>
-        <input
-          className="input mb-4"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+      <main className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl border border-gray-200/80 shadow-lg">
+          <h1 className="text-xl font-bold text-gray-900 mb-6">
+            Log into Casha- Ba
+          </h1>
 
-        <label className="mb-1 block text-xs font-semibold text-gray-600">Password</label>
-        <input
-          className="input mb-2"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-xs font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-        <div className="mb-4 flex justify-end">
-          <Link href={ROUTES.FORGOT_PASSWORD} className="text-xs text-brand-600 hover:underline">
-            Forgot password?
-          </Link>
+            <div>
+              <input
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-xs font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && <p className="text-xs text-red-600 font-medium text-center">{error}</p>}
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white font-medium py-3 rounded-full text-sm shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
+              >
+                {loading ? "Logging in..." : "Login"}
+              </button>
+            </div>
+
+            <div className="text-center py-1">
+              <Link
+                href={ROUTES.FORGOT_PASSWORD}
+                className="text-xs text-gray-400 hover:text-gray-600 transition"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+
+            <div>
+              <Link
+                href={ROUTES.SIGNUP}
+                className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white font-medium py-3 rounded-full text-sm shadow-sm transition-all duration-200 block text-center"
+              >
+                Create new account
+              </Link>
+            </div>
+          </form>
         </div>
-
-        {error && <p className="mb-4 text-xs text-red-600">{error}</p>}
-
-        <button className="btn-primary" disabled={loading}>
-          {loading ? "Logging in..." : "Log in"}
-        </button>
-
-        <p className="mt-4 text-center text-xs text-gray-500">
-          Test credentials: anna@example.com / password
-        </p>
-
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Don&apos;t have an account?{" "}
-          <Link href={ROUTES.SIGNUP} className="font-semibold text-brand-600 hover:underline">
-            Sign up
-          </Link>
-        </p>
-      </form>
+      </main>
     </div>
   );
 }

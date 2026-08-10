@@ -3,66 +3,94 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/constants";
+import { incomeSetupService } from "@/services/incomeSetupService";
 
 export default function OnboardingIncomePage() {
   const router = useRouter();
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [budgetLimit, setBudgetLimit] = useState("");
-  const [alertsOn, setAlertsOn] = useState(true);
+  const [income, setIncome] = useState("");
+  const [period, setPeriod] = useState<"Weekly" | "Monthly">("Monthly");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleFinish(e: React.FormEvent) {
+  async function handleFinish(e: React.FormEvent) {
     e.preventDefault();
-    // Replace with a real "save onboarding data" API call when ready.
-    router.push(ROUTES.DASHBOARD);
+    setError("");
+    setLoading(true);
+    try {
+      await incomeSetupService.saveIncomeSetup(
+        parseFloat(income),
+        period.toLowerCase()
+      );
+      router.push(ROUTES.ONBOARDING_RECURRING);
+    } catch (err) {
+      console.error("Failed to save income setup:", err);
+      setError("Failed to save income. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-brand-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#eff2f0] px-4 font-sans">
       <form
         onSubmit={handleFinish}
-        className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm"
+        className="w-full max-w-lg rounded-[28px] bg-white p-10 shadow-lg border border-gray-100"
       >
-        <p className="mb-1 text-xs font-semibold text-brand-600">Step 2 of 2</p>
-        <h1 className="mb-1 text-2xl font-bold text-brand-900">Set up your budget</h1>
-        <p className="mb-6 text-sm text-gray-500">
-          We&apos;ll use this to give you a monthly spending picture.
-        </p>
+        <h1 className="mb-8 text-2xl font-bold text-gray-900 tracking-tight">Get started on Casha- Ba</h1>
 
-        <label className="mb-1 block text-xs font-semibold text-gray-600">
-          Monthly income
+        <label className="block text-xs font-semibold text-gray-700 mb-3">
+          Income / Allowance
         </label>
-        <input
-          className="input mb-4"
-          type="number"
-          placeholder="e.g. 45000"
-          value={monthlyIncome}
-          onChange={(e) => setMonthlyIncome(e.target.value)}
-          required
-        />
 
-        <label className="mb-1 block text-xs font-semibold text-gray-600">
-          Monthly spending limit
-        </label>
-        <input
-          className="input mb-4"
-          type="number"
-          placeholder="e.g. 30000"
-          value={budgetLimit}
-          onChange={(e) => setBudgetLimit(e.target.value)}
-          required
-        />
-
-        <label className="mb-6 flex items-center gap-2 text-sm text-gray-600">
+        <div className="relative mb-8">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-800">₱</span>
           <input
-            type="checkbox"
-            checked={alertsOn}
-            onChange={(e) => setAlertsOn(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-brand-600"
+            className="w-full border border-gray-400 pl-10 pr-4 py-6 text-xl font-bold text-gray-900 focus:outline-none focus:border-emerald-600 rounded-sm"
+            type="number"
+            placeholder="0.00"
+            value={income}
+            onChange={(e) => setIncome(e.target.value)}
+            required
           />
-          Notify me when I&apos;m close to my budget limit
-        </label>
+        </div>
 
-        <button className="btn-primary">Finish setup</button>
+        <div className="grid grid-cols-2 gap-6 mb-10">
+          <button
+            type="button"
+            onClick={() => setPeriod("Weekly")}
+            className={`py-8 rounded-sm text-sm font-semibold transition border ${
+              period === "Weekly"
+                ? "bg-[#ffc2c7] border-red-300 text-gray-900 shadow-sm"
+                : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Weekly
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPeriod("Monthly")}
+            className={`py-8 rounded-sm text-sm font-semibold transition border ${
+              period === "Monthly"
+                ? "bg-[#9eb7e5] border-blue-400 text-gray-900 shadow-sm"
+                : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Monthly
+          </button>
+        </div>
+
+        {error && <p className="mb-4 text-center text-xs text-red-600 font-medium">{error}</p>}
+
+        <div className="text-center">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-64 rounded-full bg-[#b9e7cf] hover:bg-[#a6dec0] disabled:opacity-50 border border-emerald-300 text-gray-900 font-semibold py-3.5 text-sm shadow-sm transition-all duration-200 cursor-pointer mx-auto block"
+          >
+            {loading ? "Saving..." : "Confirm Income"}
+          </button>
+        </div>
       </form>
     </div>
   );

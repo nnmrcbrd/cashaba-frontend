@@ -21,35 +21,35 @@ export default function OnboardingRolePage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-brand-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm">
-        <p className="mb-1 text-xs font-semibold text-brand-600">Step 1 of 2</p>
-        <h1 className="mb-1 text-2xl font-bold text-brand-900">What describes you best?</h1>
-        <p className="mb-6 text-sm text-gray-500">Select all that apply. This helps us tailor your budget.</p>
+    <div className="flex min-h-screen items-center justify-center bg-[#eff2f0] px-4 font-sans">
+      <div className="w-full max-w-lg rounded-[28px] bg-white p-10 shadow-lg border border-gray-100 text-center">
+        <h1 className="mb-2 text-xl font-bold text-gray-900 tracking-tight">Get started on Casha- Ba</h1>
+        <p className="mb-8 text-xs font-semibold text-gray-700 text-left">Role (Select all that apply)</p>
 
-        <div className="mb-6 grid grid-cols-2 gap-3">
-          {ROLES.map((role) => (
-            <button
-              key={role}
-              type="button"
-              onClick={() => toggle(role)}
-              className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
-                selected.includes(role)
-                  ? "border-brand-600 bg-brand-50 text-brand-700"
-                  : "border-gray-200 text-gray-600 hover:border-brand-300"
-              }`}
-            >
-              {role}
-            </button>
-          ))}
+        <div className="space-y-4 mb-8 text-left">
+          {ROLES.map((role) => {
+            const isChecked = selected.includes(role);
+            return (
+              <div
+                key={role}
+                onClick={() => toggle(role)}
+                className="w-full border border-gray-400 p-4 rounded-sm flex items-center gap-4 cursor-pointer hover:border-emerald-600 transition"
+              >
+                <div className={`h-5 w-5 border border-gray-500 rounded-sm flex items-center justify-center ${isChecked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-white"}`}>
+                  {isChecked && "✓"}
+                </div>
+                <span className="text-sm font-semibold text-gray-900">{role}</span>
+              </div>
+            );
+          })}
         </div>
 
         <button
           onClick={handleContinue}
           disabled={selected.length === 0}
-          className="btn-primary"
+          className="w-48 rounded-full bg-[#2bb673] hover:bg-[#24a164] text-white font-medium py-3 text-sm shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50 mx-auto block"
         >
-          Continue
+          Next
         </button>
       </div>
     </div>

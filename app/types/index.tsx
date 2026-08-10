@@ -9,15 +9,18 @@ export interface User {
   avatar?: string;
   memberSince: string;
   accountType: "Standard User" | "Premium";
+  accountRole?: "USER" | "ADMIN" | string;
   status: "Active" | "Inactive";
 }
+
+export type TransactionType = "income" | "expense";
 
 export interface Transaction {
   id: string;
   date: string;
   description: string;
   category: string;
-  type: "Income" | "Expense";
+  type: TransactionType;
   amount: number;
 }
 
