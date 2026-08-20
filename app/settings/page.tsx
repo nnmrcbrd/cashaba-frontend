@@ -7,12 +7,14 @@ import { useAuth } from "@/context/Authcontext";
 import { ROUTES } from "@/constants/index";
 import { incomeSetupService } from "@/services/incomeSetupService";
 import apiClient from "@/lib/apiClient";
+import { useTheme } from "@/context/ThemeContext";
 
-const TABS = ["Profile", "Income", "Preferences", "Security"] as const;
+const TABS = ["Profile", "Income", "Preferences", "Appearance", "Security"] as const;
 const ROLE_OPTIONS = ["Student", "Freelance", "Working", "Married"] as const;
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Profile");
 
   // Profile Form state matching Figma fields
@@ -410,6 +412,75 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+        {/* Tab 5: Appearance Settings (Theme Engine) */}
+        {tab === "Appearance" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl border border-gray-200/90 p-8 shadow-sm">
+              <div className="mb-6">
+                <h2 className="text-base font-bold text-[#186849]">Appearance</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Choose your preferred app theme.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {([
+                  {
+                    id: "light",
+                    label: "☀️ Light",
+                    desc: "Clean white interface",
+                    bg: "bg-white",
+                    border: "border-gray-200",
+                    preview: "bg-gray-50",
+                  },
+                  {
+                    id: "dark",
+                    label: "🌙 Dark",
+                    desc: "Easy on the eyes",
+                    bg: "bg-gray-900",
+                    border: "border-gray-700",
+                    preview: "bg-gray-800",
+                  },
+                  {
+                    id: "amoled",
+                    label: "⬛ Amoled",
+                    desc: "Pure black for OLED",
+                    bg: "bg-black",
+                    border: "border-gray-800",
+                    preview: "bg-gray-950",
+                  },
+                ] as const).map((t) => (
+                  <button
+                    key={t.id}
+                    id={`theme-${t.id}`}
+                    onClick={() => setTheme(t.id)}
+                    className={`relative p-4 rounded-2xl border-2 transition-all duration-200 text-left
+                      ${theme === t.id
+                        ? "border-[#186849] ring-2 ring-[#186849]/20"
+                        : "border-gray-200 hover:border-gray-300"
+                      }`}
+                  >
+                    {/* Preview swatch */}
+                    <div className={`w-full h-16 ${t.preview} rounded-xl mb-3 border ${t.border} flex items-center justify-center gap-1`}>
+                      <div className={`w-3 h-3 rounded-full ${t.id === "light" ? "bg-emerald-500" : "bg-emerald-400"}`} />
+                      <div className={`w-8 h-1.5 rounded-full ${t.id === "light" ? "bg-gray-300" : "bg-gray-600"}`} />
+                    </div>
+                    <p className="text-xs font-bold text-gray-800">{t.label}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{t.desc}</p>
+                    {theme === t.id && (
+                      <span className="absolute top-2 right-2 text-[10px] bg-[#186849] text-white px-2 py-0.5 rounded-full font-bold">
+                        Active
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[11px] text-gray-400 mt-4">
+                Theme preference is saved locally and applied instantly across all pages.
+              </p>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );

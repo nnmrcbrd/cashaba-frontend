@@ -37,6 +37,7 @@ export default function AIAssistantPage() {
           });
           setMessages(loaded);
         } else {
+          // No history — show welcome + auto-trigger daily brief
           setMessages([
             {
               id: "welcome",
@@ -45,6 +46,26 @@ export default function AIAssistantPage() {
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             }
           ]);
+          // Auto-send daily brief for new sessions
+          setTimeout(async () => {
+            setLoading(true);
+            try {
+              const briefRes = await apiClient.post("/ai/chat", { message: "Give me my daily financial brief" });
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: briefRes.data.id || crypto.randomUUID(),
+                  role: "assistant" as const,
+                  content: briefRes.data.content,
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                },
+              ]);
+            } catch (err) {
+              console.warn("Daily brief auto-fetch failed:", err);
+            } finally {
+              setLoading(false);
+            }
+          }, 800);
         }
       } catch (err) {
         console.error("Failed to load AI history", err);
@@ -174,6 +195,15 @@ export default function AIAssistantPage() {
               <p className="text-gray-500 text-[11px] mb-4">Click any example to fill in prompt:</p>
 
               <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => fillPrompt("Give me my daily financial brief")}
+                  className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
+                >
+                  <p className="font-bold text-emerald-700">☀️ Daily Brief</p>
+                  <p className="text-gray-500 text-[11px]">"Give me my daily financial brief"</p>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => fillPrompt("Spent 150 on groceries")}

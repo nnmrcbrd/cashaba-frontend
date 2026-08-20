@@ -1,0 +1,43 @@
+{
+  "name": "Casha-Ba",
+  "short_name": "Casha-Ba",
+  "description": "AI-Powered Expense Tracking and Budget Management",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f7faf8",
+  "theme_color": "#186849",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"],
+  "lang": "en-PH",
+  "shortcuts": [
+    {
+      "name": "Add Transaction",
+      "url": "/transactions",
+      "description": "Log a new expense or income"
+    },
+    {
+      "name": "AI Assistant",
+      "url": "/ai-assistant",
+      "description": "Chat with Casha AI"
+    },
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View financial overview"
+    }
+  ]
+}

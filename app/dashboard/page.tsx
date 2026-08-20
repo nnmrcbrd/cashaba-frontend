@@ -11,6 +11,12 @@ import { loanService, LoanSummary } from "@/services/loanService";
 import apiClient from "@/lib/apiClient";
 import { ROUTES } from "@/constants";
 
+// Premium feature components
+import InsightCards from "../components/InsightCards";
+import HealthScoreWidget from "../components/HealthScoreWidget";
+import SpendingAlert from "../components/SpendingAlert";
+import RecurringDetectionBanner from "../components/RecurringDetectionBanner";
+
 interface BudgetData {
   targetAmount: number;
   amountSpent: number;
@@ -29,6 +35,7 @@ export default function DashboardPage() {
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [loanSummary, setLoanSummary] = useState<LoanSummary>({ totalBorrowed: 0, totalLent: 0, overdueCount: 0 });
   const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -101,6 +108,14 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-[#f7faf8]">
       <Sidebar />
       <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
+        {/* Smart Spending Alert Banner */}
+        <SpendingAlert
+          status={budgetData?.overallStatus}
+          notifications={[]}
+          onDismiss={(id) => setDismissedAlerts((prev) => [...prev, id])}
+        />
+        {/* Recurring Expense Detection */}
+        <RecurringDetectionBanner />
         {/* Header Bar */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200/60">
           <div>
@@ -204,6 +219,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* AI INSIGHT CARDS */}
+        <InsightCards />
+
         {/* MAIN DASHBOARD CONTENT GRID (2 COLUMNS) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT 2-COLUMNS: GOALS, DEBTS & TRANSACTIONS */}
@@ -285,8 +303,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* RIGHT 1-COLUMN: QUICK ACTIONS */}
+          {/* RIGHT 1-COLUMN: HEALTH SCORE + QUICK ACTIONS */}
           <div className="space-y-6">
+            {/* Financial Health Score Widget */}
+            <HealthScoreWidget />
+
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
               <h3 className="text-sm font-bold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">

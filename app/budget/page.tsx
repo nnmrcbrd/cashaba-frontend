@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "../components/ui/sidebar";
 import apiClient from "@/lib/apiClient";
 import { incomeSetupService, SavingsGoal } from "@/services/incomeSetupService";
+import SavingsGoalCard from "../components/SavingsGoalCard";
 
 interface CategoryBreakdown {
   category: string;
@@ -286,62 +287,14 @@ export default function BudgetPage() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {goals.map((g) => {
-                  const pct = Math.min(100, Math.round((g.currentAmount / (g.targetAmount || 1)) * 100));
-                  return (
-                    <div key={g.id} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between relative group">
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <span>🎯</span> {g.name}
-                          </h3>
-                          <button
-                            onClick={() => handleDeleteGoal(g.id)}
-                            className="text-gray-400 hover:text-red-600 text-xs opacity-0 group-hover:opacity-100 transition"
-                          >
-                            ✕
-                          </button>
-                        </div>
-
-                        <div className="flex justify-between text-xs font-semibold text-gray-600 mb-2">
-                          <span>₱{g.currentAmount.toLocaleString()} saved</span>
-                          <span className="text-emerald-700 font-bold">{pct}%</span>
-                        </div>
-
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100 mb-3">
-                          <div
-                            className="h-full rounded-full bg-emerald-600 transition-all duration-300"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-
-                        <p className="text-[11px] text-gray-500 mb-4">
-                          Target: <strong>₱{g.targetAmount.toLocaleString()}</strong>
-                          {g.monthlyAllocation > 0 && ` · ₱${g.monthlyAllocation.toLocaleString()}/mo allocation`}
-                        </p>
-                      </div>
-
-                      <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
-                        <button
-                          onClick={() => setDepositModalGoal(g)}
-                          className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl py-2 text-xs font-semibold transition"
-                        >
-                          + Add Funds
-                        </button>
-                        <button
-                          onClick={() => handleToggleComplete(g)}
-                          className={`px-3 py-2 rounded-xl text-xs font-semibold transition border ${
-                            g.isCompleted
-                              ? "bg-gray-100 text-gray-600 border-gray-200"
-                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                          }`}
-                        >
-                          {g.isCompleted ? "✓ Completed" : "Complete"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {goals.map((g) => (
+                  <SavingsGoalCard
+                    key={g.id}
+                    goal={g}
+                    onDeposit={(goal) => setDepositModalGoal(goal)}
+                    onDelete={handleDeleteGoal}
+                  />
+                ))}
               </div>
             )}
           </div>

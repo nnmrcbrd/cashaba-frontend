@@ -6,6 +6,8 @@ import apiClient from "@/lib/apiClient";
 import { incomeSetupService } from "@/services/incomeSetupService";
 import { useAuth } from "@/context/Authcontext";
 import { exportFinancialReport } from "@/lib/pdfExport";
+import { exportTransactionsCSV } from "@/lib/csvExport";
+import SpendingForecast from "../components/SpendingForecast";
 
 interface CategoryStat {
   name: string;
@@ -115,12 +117,30 @@ export default function AnalyticsPage() {
             <p className="text-xs text-gray-500 mt-1">Visualize category distributions, spending trends, and export report.</p>
           </div>
 
-          <button
-            onClick={handleExportPDF}
-            className="bg-[#186849] hover:bg-[#13543b] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition"
-          >
-            <span>📄</span> Export PDF Report
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() =>
+                exportTransactionsCSV(
+                  transactions.map((t) => ({
+                    date: t.date ? t.date.split("T")[0] : "",
+                    description: t.description || t.category,
+                    category: t.category,
+                    type: (t.type || "expense").toLowerCase() as any,
+                    amount: t.amount,
+                  }))
+                )
+              }
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition"
+            >
+              <span>📊</span> Export CSV
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="bg-[#186849] hover:bg-[#13543b] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition"
+            >
+              <span>📄</span> Export PDF Report
+            </button>
+          </div>
         </div>
 
         {/* Top Card: Spending by Category */}
@@ -234,6 +254,8 @@ export default function AnalyticsPage() {
             <strong>{topCategory.name}</strong> accounts for <strong>{topCategory.pct}%</strong> of your total spending because you spent ₱{topCategory.amount.toLocaleString()} out of ₱{totalSpent.toLocaleString()} this period. Your current Safe-to-Spend is <strong>₱{safeToSpend.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>.
           </div>
         </div>
+        {/* Spending Forecast */}
+        <SpendingForecast transactions={transactions} totalIncome={totalIncome} />
       </main>
     </div>
   );
