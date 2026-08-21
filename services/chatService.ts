@@ -6,12 +6,17 @@ export interface ChatMessage {
 }
 
 export const sendMessage = async (messages: ChatMessage[]): Promise<string> => {
+  const token = typeof window !== "undefined" ? localStorage.getItem("casha_access_token") : null;
   const res = await fetch("/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ messages }),
   });
 
   const data = await res.json();
-  return data.reply;
+  if (!res.ok) throw new Error(data.message || "Unable to send chat message");
+  return data.content;
 };

@@ -24,7 +24,7 @@ export const ROUTES = {
 };
 
 export const CATEGORIES = {
-  EXPENSE: ["Food", "Transport", "Housing", "Utilities", "Shopping", "Health", "Entertainment", "Other"],
+  EXPENSE: ["Food & Dining", "Transport", "Utilities", "Housing", "Health", "Entertainment", "Education", "Shopping", "Savings", "Debt Payment", "Others"],
   INCOME: ["Salary", "Freelance", "Business", "Gift", "Other"],
 };
 

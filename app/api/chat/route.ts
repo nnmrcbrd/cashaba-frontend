@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Replace with a real LLM call (e.g. the Anthropic API) when ready.
 export async function POST(req: NextRequest) {
-  const { message } = await req.json();
+  const authorization = req.headers.get("authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    return NextResponse.json({ message: "Authentication required" }, { status: 401 });
+  }
 
-  const reply = `I heard: "${message}". Once connected to a real model, I'll give you personalized budgeting advice here.`;
+  const body = await req.json();
+  const message = typeof body.message === "string"
+    ? body.message
+    : Array.isArray(body.messages)
+      ? [...body.messages].reverse().find((item) => item?.role === "user")?.content
+      : null;
 
-  return NextResponse.json({
-    id: crypto.randomUUID(),
-    role: "assistant",
-    content: reply,
-    timestamp: new Date().toISOString(),
+  if (typeof message !== "string" || !message.trim()) {
+    return NextResponse.json({ message: "A user message is required" }, { status: 400 });
+  }
+
+  const apiBase = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${apiBase}/ai/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authorization,
+    },
+    body: JSON.stringify({ message: message.trim() }),
+    cache: "no-store",
   });
+
+  const data = await response.json();
+  return NextResponse.json(data, { status: response.status });
 }

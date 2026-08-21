@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "../context/Authcontext";
 import { ThemeProvider } from "../context/ThemeContext";
+import { RouteGuard } from "../context/RouteGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <RouteGuard>{children}</RouteGuard>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

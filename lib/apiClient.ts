@@ -1,6 +1,8 @@
 import axios from "axios";
 import { AUTH } from "@/constants";
 
+let refreshRequest: Promise<string> | null = null;
+
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
   headers: {
@@ -27,16 +29,24 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
-    if ((status === 401 || status === 403) && !originalRequest._retry) {
+    const isAuthRequest = originalRequest?.url?.startsWith("/auth/");
+    if (status === 401 && !isAuthRequest && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        // Try refreshing token
-        const refreshRes = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-        const { accessToken } = refreshRes.data;
+        if (!refreshRequest) {
+          refreshRequest = axios
+            .post(
+              `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/refresh`,
+              {},
+              { withCredentials: true },
+            )
+            .then((response) => response.data.accessToken as string)
+            .finally(() => {
+              refreshRequest = null;
+            });
+        }
+
+        const accessToken = await refreshRequest;
         if (typeof window !== "undefined") {
           localStorage.setItem(AUTH.TOKEN_KEY, accessToken);
         }
@@ -44,7 +54,8 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         if (typeof window !== "undefined") {
-          localStorage.clear();
+          localStorage.removeItem(AUTH.TOKEN_KEY);
+          localStorage.removeItem("casha_user");
           window.location.href = "/login";
         }
         return Promise.reject(refreshError);

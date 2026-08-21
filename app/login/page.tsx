@@ -7,7 +7,7 @@ import { useAuth } from "@/context/Authcontext";
 import { ROUTES } from "@/constants";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginError } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +27,7 @@ export default function LoginPage() {
         router.push(ROUTES.DASHBOARD);
       }
     } else {
-      setError("Invalid email or password.");
+      setError("");
     }
   }
 
@@ -67,7 +67,11 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && <p className="text-xs text-red-600 font-medium text-center">{error}</p>}
+            {(error || loginError) && (
+              <p className="text-xs text-red-600 font-medium text-center">
+                {error || loginError}
+              </p>
+            )}
 
             <div className="pt-2">
               <button
