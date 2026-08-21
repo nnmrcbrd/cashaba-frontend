@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/ui/sidebar";
 import apiClient from "@/lib/apiClient";
 import { incomeSetupService } from "@/services/incomeSetupService";
@@ -8,6 +8,7 @@ import { useAuth } from "@/context/Authcontext";
 import { exportFinancialReport } from "@/lib/pdfExport";
 import { exportTransactionsCSV } from "@/lib/csvExport";
 import SpendingForecast from "../components/SpendingForecast";
+import { TransactionType } from "../types";
 
 interface CategoryStat {
   name: string;
@@ -21,19 +22,23 @@ interface TrendPoint {
   amount: number;
 }
 
+interface BackendTransaction {
+  id: string;
+  date?: string;
+  createdAt?: string;
+  description?: string;
+  category?: string;
+  type: string;
+  amount: number;
+}
+
 export default function AnalyticsPage() {
   const { user } = useAuth();
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [safeToSpend, setSafeToSpend] = useState(0);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [categories, setCategories] = useState<CategoryStat[]>([
-    { name: "Food & Dining", pct: 40, amount: 4000, color: "#1e6b52" },
-    { name: "Transport", pct: 20, amount: 2000, color: "#b09e2e" },
-    { name: "Utilities", pct: 15, amount: 1500, color: "#81c798" },
-    { name: "Shopping", pct: 15, amount: 1500, color: "#f15b5b" },
-    { name: "Others", pct: 10, amount: 1000, color: "#5c9edd" },
-  ]);
+  const [transactions, setTransactions] = useState<BackendTransaction[]>([]);
+  const [categories, setCategories] = useState<CategoryStat[]>([]);
 
   useEffect(() => {
     async function loadAnalytics() {
@@ -48,18 +53,19 @@ export default function AnalyticsPage() {
         if (txRes.data && txRes.data.length > 0) {
           setTransactions(txRes.data);
 
-          const expenses = txRes.data.filter((t: any) => (t.type || "").toUpperCase() === "EXPENSE");
-          const incomes = txRes.data.filter((t: any) => (t.type || "").toUpperCase() === "INCOME");
+          const responseTransactions = txRes.data as BackendTransaction[];
+          const expenses = responseTransactions.filter((t) => (t.type || "").toUpperCase() === "EXPENSE");
+          const incomes = responseTransactions.filter((t) => (t.type || "").toUpperCase() === "INCOME");
 
-          const totalExp = expenses.reduce((sum: number, t: any) => sum + t.amount, 0);
-          const totalInc = incomes.reduce((sum: number, t: any) => sum + t.amount, 0);
+          const totalExp = expenses.reduce((sum, t) => sum + t.amount, 0);
+          const totalInc = incomes.reduce((sum, t) => sum + t.amount, 0);
 
           setTotalSpent(totalExp);
-          setTotalIncome(totalInc || setupRes.setup?.totalIncome || 25000);
+          setTotalIncome(totalInc || setupRes.setup?.totalIncome || 0);
 
           if (totalExp > 0) {
             const catMap: Record<string, number> = {};
-            expenses.forEach((t: any) => {
+            expenses.forEach((t) => {
               const cat = t.category || "Others";
               catMap[cat] = (catMap[cat] || 0) + t.amount;
             });
@@ -85,6 +91,47 @@ export default function AnalyticsPage() {
     loadAnalytics();
   }, []);
 
+  const categorySegments = useMemo(
+    () => categories.map((category, index) => ({
+      ...category,
+      offset: -categories
+        .slice(0, index)
+        .reduce((sum, item) => sum + item.pct, 0),
+    })),
+    [categories],
+  );
+
+  const weeklyTrend = useMemo<TrendPoint[]>(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const weekCount = Math.ceil(new Date(year, month + 1, 0).getDate() / 7);
+    const weeklyTotals = Array.from({ length: weekCount }, () => 0);
+
+    transactions.forEach((transaction) => {
+      if ((transaction.type || "").toUpperCase() !== "EXPENSE") return;
+      const date = new Date(transaction.date || transaction.createdAt || "");
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== month) return;
+      const weekIndex = Math.min(Math.floor((date.getDate() - 1) / 7), weekCount - 1);
+      weeklyTotals[weekIndex] += transaction.amount;
+    });
+
+    return weeklyTotals.map((amount, index) => ({ label: `Week ${index + 1}`, amount }));
+  }, [transactions]);
+
+  const trendMax = Math.max(...weeklyTrend.map((point) => point.amount), 1);
+  const trendPoints = weeklyTrend.map((point, index) => ({
+    ...point,
+    x: weeklyTrend.length === 1 ? 260 : 50 + (index * 430) / (weeklyTrend.length - 1),
+    y: 130 - (point.amount / trendMax) * 110,
+  }));
+  const trendPointString = trendPoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const trendGrid = [1, 0.75, 0.5, 0.25, 0].map((ratio, index) => ({
+    ratio,
+    y: 20 + index * 27.5,
+    label: Math.round(trendMax * ratio),
+  }));
+
   const topCategory = categories[0] || { name: "Expenses", pct: 0, amount: 0 };
 
   function handleExportPDF() {
@@ -98,9 +145,9 @@ export default function AnalyticsPage() {
       transactions: transactions.map(t => ({
         id: t.id,
         date: t.date ? t.date.split("T")[0] : "",
-        description: t.description || t.category,
-        category: t.category,
-        type: (t.type || "expense").toLowerCase() as any,
+        description: t.description || t.category || "Transaction",
+        category: t.category || "Others",
+        type: (t.type || "expense").toLowerCase() as TransactionType,
         amount: t.amount,
       })),
     });
@@ -123,9 +170,9 @@ export default function AnalyticsPage() {
                 exportTransactionsCSV(
                   transactions.map((t) => ({
                     date: t.date ? t.date.split("T")[0] : "",
-                    description: t.description || t.category,
-                    category: t.category,
-                    type: (t.type || "expense").toLowerCase() as any,
+                    description: t.description || t.category || "Transaction",
+                    category: t.category || "Others",
+                    type: (t.type || "expense").toLowerCase() as TransactionType,
                     amount: t.amount,
                   }))
                 )
@@ -151,28 +198,20 @@ export default function AnalyticsPage() {
             {/* SVG Donut Chart */}
             <div className="relative flex items-center justify-center">
               <svg viewBox="0 0 100 100" className="w-56 h-56 transform -rotate-90">
-                {(() => {
-                  let accumulatedPct = 0;
-                  return categories.map((c, i) => {
-                    const strokeDasharray = `${c.pct} ${100 - c.pct}`;
-                    const strokeDashoffset = -accumulatedPct;
-                    accumulatedPct += c.pct;
-                    return (
-                      <circle
-                        key={i}
-                        cx="50"
-                        cy="50"
-                        r="35"
-                        fill="transparent"
-                        stroke={c.color}
-                        strokeWidth="12"
-                        strokeDasharray={strokeDasharray}
-                        strokeDashoffset={strokeDashoffset}
-                        pathLength="100"
-                      />
-                    );
-                  });
-                })()}
+                {categorySegments.map((category) => (
+                  <circle
+                    key={category.name}
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke={category.color}
+                    strokeWidth="12"
+                    strokeDasharray={`${category.pct} ${100 - category.pct}`}
+                    strokeDashoffset={category.offset}
+                    pathLength="100"
+                  />
+                ))}
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
                 <span className="text-xl font-bold text-gray-900">₱{totalSpent.toLocaleString()}</span>
@@ -208,43 +247,40 @@ export default function AnalyticsPage() {
           {/* SVG Trend Line Graph */}
           <div className="relative h-56 w-full pt-4">
             <svg viewBox="0 0 500 150" className="w-full h-full overflow-visible">
-              {/* Grid lines */}
-              <line x1="40" y1="20" x2="480" y2="20" stroke="#f0f0f0" strokeWidth="1" />
-              <line x1="40" y1="50" x2="480" y2="50" stroke="#f0f0f0" strokeWidth="1" />
-              <line x1="40" y1="80" x2="480" y2="80" stroke="#f0f0f0" strokeWidth="1" />
-              <line x1="40" y1="110" x2="480" y2="110" stroke="#f0f0f0" strokeWidth="1" />
-              <line x1="40" y1="130" x2="480" y2="130" stroke="#e0e0e0" strokeWidth="1" />
+              {trendGrid.map((gridLine) => (
+                <g key={gridLine.ratio}>
+                  <line
+                    x1="40"
+                    y1={gridLine.y}
+                    x2="480"
+                    y2={gridLine.y}
+                    stroke={gridLine.ratio === 0 ? "#e0e0e0" : "#f0f0f0"}
+                    strokeWidth="1"
+                  />
+                  <text x="2" y={gridLine.y + 4} fill="#999" fontSize="9" fontWeight="600">
+                    ₱{gridLine.label.toLocaleString("en-US")}
+                  </text>
+                </g>
+              ))}
 
-              {/* Y Axis Labels */}
-              <text x="5" y="24" fill="#999" fontSize="9" fontWeight="600">₱ 5,000</text>
-              <text x="5" y="54" fill="#999" fontSize="9" fontWeight="600">₱ 3,500</text>
-              <text x="5" y="84" fill="#999" fontSize="9" fontWeight="600">₱ 2,000</text>
-              <text x="5" y="114" fill="#999" fontSize="9" fontWeight="600">₱ 500</text>
-              <text x="5" y="134" fill="#999" fontSize="9" fontWeight="600">₱ 0</text>
-
-              {/* Trend Path */}
-              <path
-                d="M 50 120 C 100 90, 150 110, 200 60 C 250 80, 300 40, 350 70 C 400 30, 440 50, 480 25"
+              <polyline
+                points={trendPointString}
                 fill="none"
                 stroke="#16a34a"
                 strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
               />
 
-              {/* Data points */}
-              {[
-                { x: 50, y: 120 },
-                { x: 200, y: 60 },
-                { x: 350, y: 70 },
-                { x: 480, y: 25 },
-              ].map((pt, i) => (
-                <circle key={i} cx={pt.x} cy={pt.y} r="4" fill="#ffffff" stroke="#16a34a" strokeWidth="2" />
+              {trendPoints.map((point) => (
+                <g key={point.label}>
+                  <circle cx={point.x} cy={point.y} r="4" fill="#ffffff" stroke="#16a34a" strokeWidth="2" />
+                  <title>{`${point.label}: ₱${point.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}</title>
+                  <text x={point.x} y="146" textAnchor="middle" fill="#666" fontSize="9">
+                    {point.label}
+                  </text>
+                </g>
               ))}
-
-              {/* X Axis Labels */}
-              <text x="45" y="146" fill="#666" fontSize="9">Week 1</text>
-              <text x="185" y="146" fill="#666" fontSize="9">Week 2</text>
-              <text x="335" y="146" fill="#666" fontSize="9">Week 3</text>
-              <text x="465" y="146" fill="#666" fontSize="9">Week 4</text>
             </svg>
           </div>
 
