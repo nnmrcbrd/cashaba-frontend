@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import apiClient from "@/lib/apiClient";
+import Image from "next/image";
+import WalletSelector from "@/app/components/WalletSelector";
 
 interface ParsedTransaction {
   amount: number;
@@ -22,6 +24,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [walletId, setWalletId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleDrop(e: React.DragEvent) {
@@ -34,6 +37,10 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
   function processFile(file: File) {
     if (!file.type.startsWith("image/")) {
       setError("Please upload an image file (PNG, JPG).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image must be 2 MB or smaller.");
       return;
     }
     setError(null);
@@ -57,7 +64,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
       } else {
         setError("Could not extract transaction details. Try a clearer screenshot.");
       }
-    } catch (err) {
+    } catch {
       setError("Scan failed. Please try again or log manually.");
     } finally {
       setLoading(false);
@@ -65,7 +72,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
   }
 
   async function confirmLog() {
-    if (!parsed) return;
+    if (!parsed || !walletId) return;
     setLogging(true);
     try {
       await apiClient.post("/transactions", {
@@ -74,12 +81,13 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
         category: parsed.category || "Others",
         amount: parsed.amount,
         date: parsed.date,
+        walletId,
       });
       setSuccess(true);
       setParsed(null);
       setPreview(null);
       onLogSuccess?.();
-    } catch (err) {
+    } catch {
       setError("Failed to log transaction. Please try again.");
     } finally {
       setLogging(false);
@@ -139,7 +147,9 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Image Preview */}
           <div>
-            <img src={preview} alt="GCash screenshot" className="w-full rounded-xl border border-gray-200 max-h-64 object-contain bg-gray-50" />
+            <div className="relative h-64 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              <Image src={preview} alt="GCash screenshot" fill unoptimized className="object-contain" />
+            </div>
             <button
               onClick={() => { setPreview(null); setParsed(null); setError(null); }}
               className="mt-2 text-[11px] text-gray-400 hover:text-gray-600 transition"
@@ -157,6 +167,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
               </div>
             ) : parsed ? (
               <div className="space-y-3">
+                <WalletSelector value={walletId} onChange={setWalletId} label="Account charged" />
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
                   <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Detected Transaction</p>
                   <div className="space-y-1 text-xs">
@@ -180,7 +191,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
                 </div>
                 <button
                   onClick={confirmLog}
-                  disabled={logging}
+                  disabled={logging || !walletId}
                   className="w-full bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white text-xs font-bold py-2.5 rounded-xl transition"
                 >
                   {logging ? "Logging..." : "✅ Confirm & Log Transaction"}

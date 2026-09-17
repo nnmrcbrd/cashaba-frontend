@@ -14,7 +14,7 @@ export const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     if (!isAuthenticated) {
       router.replace("/login");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   if (!isAuthenticated) return null;
 

@@ -2,73 +2,80 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import axios from "axios";
+import { AlertCircle, ArrowRight, CheckCircle2, TerminalSquare } from "lucide-react";
 import { ROUTES } from "@/constants";
+import apiClient from "@/lib/apiClient";
+import AuthShell from "@/app/components/auth/AuthShell";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [developmentHint, setDevelopmentHint] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSent(true);
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const response = await apiClient.post("/auth/forgot-password", { email });
+      setDevelopmentHint(Boolean(response.data.developmentHint));
+      setSubmitted(true);
+    } catch (requestError) {
+      setError(axios.isAxiosError<{ message?: string }>(requestError)
+        ? requestError.response?.data?.message || "Unable to process the request."
+        : "Unable to process the request.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-[#eef2ef] flex flex-col font-sans">
-      {/* Top Banner Tag */}
-      <div className="bg-[#dcdfdc] px-8 py-2 text-xs font-bold text-gray-500 uppercase tracking-wide">
-        FORGOT PASSWORD
-      </div>
-
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl border border-gray-200/80 shadow-lg">
-          <p className="text-xs font-bold text-gray-800 mb-4">Forgot password</p>
-          <h1 className="text-sm font-bold text-gray-900 mb-1">Find your account</h1>
-          <p className="text-xs text-gray-500 mb-6">Enter your mobile or email</p>
-
-          {sent ? (
-            <div className="space-y-4 text-center">
-              <p className="rounded-xl bg-emerald-50 p-4 text-xs font-medium text-emerald-800 border border-emerald-200">
-                If an account exists for <strong>{email}</strong>, password reset instructions have been sent.
-              </p>
-              <Link
-                href={ROUTES.LOGIN}
-                className="inline-block text-xs font-semibold text-emerald-600 hover:underline"
-              >
-                ← Back to login
-              </Link>
+    <AuthShell
+      eyebrow="Account recovery"
+      title={submitted ? "Check the next step" : "Reset your password"}
+      description={submitted
+        ? "For security, the response is the same whether or not an account exists."
+        : "Enter the email address connected to your Casha-Ba account."}
+    >
+      {submitted ? (
+        <div className="space-y-5">
+          <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+            <CheckCircle2 className="mt-0.5 shrink-0" size={18} />
+            <p>If an account exists for <strong>{email}</strong>, a password-reset request has been created.</p>
+          </div>
+          {developmentHint && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+              <TerminalSquare className="mt-0.5 shrink-0" size={17} />
+              <p><strong>Development mode:</strong> email delivery is not configured. Open the reset link printed in the backend terminal.</p>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <input
-                  className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-xs font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
-                  type="text"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white font-medium py-3 rounded-full text-sm shadow-sm transition-all duration-200 cursor-pointer"
-                >
-                  Continue
-                </button>
-              </div>
-
-              <div className="text-center pt-2">
-                <Link href={ROUTES.LOGIN} className="text-xs text-gray-400 hover:text-gray-600 transition">
-                  Back to login
-                </Link>
-              </div>
-            </form>
           )}
+          <button type="button" onClick={() => setSubmitted(false)} className="h-11 w-full rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            Try another email
+          </button>
+          <Link href={ROUTES.LOGIN} className="block text-center text-sm font-semibold text-[#0b6b4f] hover:underline">Return to sign in</Link>
         </div>
-      </main>
-    </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label htmlFor="recoveryEmail" className="mb-1.5 block text-sm font-semibold text-slate-700">Email address</label>
+            <input id="recoveryEmail" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" required className="h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none placeholder:text-slate-400 focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
+          </div>
+          {error && (
+            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="mt-0.5 shrink-0" size={16} />
+              {error}
+            </div>
+          )}
+          <button type="submit" disabled={loading} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white transition hover:bg-[#084f3b] disabled:opacity-60">
+            {loading ? "Processing..." : "Continue"}
+            {!loading && <ArrowRight size={17} />}
+          </button>
+          <Link href={ROUTES.LOGIN} className="block text-center text-sm font-semibold text-slate-500 hover:text-[#0b6b4f]">Back to sign in</Link>
+        </form>
+      )}
+    </AuthShell>
   );
 }

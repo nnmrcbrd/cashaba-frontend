@@ -8,9 +8,9 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { AUTH, ROUTES } from "../constants/index";
+import { ROUTES } from "../constants/index";
 import { User } from "../app/types/index";
-import apiClient from "@/lib/apiClient";
+import apiClient, { setApiAccessToken } from "@/lib/apiClient";
 import axios from "axios";
 
 interface AuthContextValue {
@@ -18,9 +18,11 @@ interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User | null>;
-  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  signup: (firstName: string, lastName: string, email: string, password: string, gender: string) => Promise<boolean>;
+  refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
   loginError: string | null;
+  signupError: string | null;
   loading: boolean;
 }
 
@@ -30,10 +32,18 @@ interface BackendUser {
   lastName?: string | null;
   email: string;
   gender?: string | null;
+  avatarUrl?: string | null;
   roles?: string[];
   role?: string[];
   createdAt?: string;
   accountRole?: string;
+  onboardingComplete?: boolean;
+  onboardingStep?: number;
+  customRole?: string | null;
+  region?: string | null;
+  accountStatus?: string;
+  lastActiveAt?: string;
+  authMethod?: "LOCAL" | "GOOGLE";
 }
 
 function normalizeRoles(roles?: string[]): User["role"] {
@@ -46,7 +56,7 @@ function normalizeRoles(roles?: string[]): User["role"] {
   const normalized = (roles || [])
     .map((role) => roleMap[role.toUpperCase()])
     .filter((role): role is User["role"][number] => Boolean(role));
-  return normalized.length > 0 ? normalized : ["Working"];
+  return normalized;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -56,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
   const router = useRouter();
 
   // Helper to map backend user to frontend User type
@@ -65,33 +76,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: `${dbUser.firstName} ${dbUser.lastName || ""}`.trim(),
       email: dbUser.email,
       gender: dbUser.gender || undefined,
+      avatar: dbUser.avatarUrl || undefined,
       role: normalizeRoles(dbUser.roles || dbUser.role),
       memberSince: dbUser.createdAt ? new Date(dbUser.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      accountType: dbUser.accountRole === "ADMIN" ? "Premium" : "Standard User",
       accountRole: dbUser.accountRole || "USER",
       status: "Active",
+      onboardingComplete: dbUser.onboardingComplete,
+      onboardingStep: dbUser.onboardingStep,
+      customRole: dbUser.customRole || undefined,
+      region: dbUser.region || undefined,
+      accountStatus: dbUser.accountStatus === "SUSPENDED" ? "SUSPENDED" : "ACTIVE",
+      lastActiveAt: dbUser.lastActiveAt,
+      authMethod: dbUser.authMethod,
     };
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
-      let savedToken = window.localStorage.getItem(AUTH.TOKEN_KEY);
-
       try {
-        if (!savedToken) {
-          const refreshRes = await apiClient.post("/auth/refresh");
-          savedToken = refreshRes.data.accessToken;
-          window.localStorage.setItem(AUTH.TOKEN_KEY, savedToken!);
-        }
-
+        const refreshRes = await apiClient.post("/auth/refresh");
+        const savedToken = refreshRes.data.accessToken as string;
+        setApiAccessToken(savedToken);
         setToken(savedToken);
         const res = await apiClient.get("/users/me");
         const freshUser = mapBackendUser(res.data);
         setUser(freshUser);
-        window.localStorage.setItem("casha_user", JSON.stringify(freshUser));
       } catch {
-        window.localStorage.removeItem(AUTH.TOKEN_KEY);
-        window.localStorage.removeItem("casha_user");
+        setApiAccessToken(null);
         setToken(null);
         setUser(null);
       }
@@ -110,9 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const mappedUser = mapBackendUser(dbUser);
       setUser(mappedUser);
       setToken(accessToken);
-      
-      window.localStorage.setItem(AUTH.TOKEN_KEY, accessToken);
-      window.localStorage.setItem("casha_user", JSON.stringify(mappedUser));
+      setApiAccessToken(accessToken);
+      window.localStorage.setItem("casha_last_activity", String(Date.now()));
       return mappedUser;
     } catch (error) {
       const message = axios.isAxiosError<{ message?: string }>(error)
@@ -123,16 +133,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signup(name: string, email: string, password: string) {
+  async function refreshUser(): Promise<User | null> {
     try {
-      const [firstName, ...lastNameParts] = name.trim().split(" ");
-      const lastName = lastNameParts.join(" ") || "User";
+      const res = await apiClient.get("/users/me");
+      const freshUser = mapBackendUser(res.data);
+      setUser(freshUser);
+      return freshUser;
+    } catch {
+      return null;
+    }
+  }
 
+  async function signup(firstName: string, lastName: string, email: string, password: string, gender: string) {
+    setSignupError(null);
+    try {
       const res = await apiClient.post("/auth/signup", {
         firstName,
         lastName,
         email,
         password,
+        gender,
       });
 
       if (res.status === 201) {
@@ -141,8 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return !!loggedUser;
       }
       return false;
-    } catch (err) {
-      console.error("Signup failed", err);
+    } catch (error) {
+      const message = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : null;
+      setSignupError(message || "Unable to create your account. Please try again.");
       return false;
     }
   }
@@ -155,8 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setToken(null);
-      window.localStorage.removeItem(AUTH.TOKEN_KEY);
-      window.localStorage.removeItem("casha_user");
+      setApiAccessToken(null);
+      window.localStorage.removeItem("casha_last_activity");
       router.push(ROUTES.LOGIN);
     }
   }
@@ -169,8 +192,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!token,
         login,
         signup,
+        refreshUser,
         logout,
         loginError,
+        signupError,
         loading,
       }}
     >

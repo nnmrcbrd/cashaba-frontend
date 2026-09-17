@@ -11,9 +11,9 @@ interface ManagedUser {
   id: string;
   name: string;
   email: string;
-  location: string;
   joinedDate: string;
   status: "Active" | "Inactive";
+  lastActiveAt?: string | null;
 }
 
 interface AdminMetrics {
@@ -21,6 +21,8 @@ interface AdminMetrics {
   totalTransactions: number;
   monthTransactions: number;
   activeUsers: number;
+  newUsersThisWeek?: number;
+  weekTransactions?: number;
 }
 
 interface LocationCount {
@@ -34,37 +36,33 @@ interface ChartBar {
   gray: number;
 }
 
+interface AuditEntry {
+  id: string;
+  action: string;
+  targetId?: string | null;
+  createdAt: string;
+  actor: { firstName: string; lastName?: string | null; email: string };
+}
+
 export default function AdminManageUsersPage() {
-  const [users, setUsers] = useState<ManagedUser[]>([
-    { id: "1", name: "Marian Rivera", email: "Cebu City, PH", location: "Cebu City, PH", joinedDate: "April 23, 2026", status: "Active" },
-    { id: "2", name: "Mary Jane Lastimosa", email: "Lapu-Lapu City, PH", location: "Lapu-Lapu City, PH", joinedDate: "April 20, 2026", status: "Active" },
-    { id: "3", name: "Mary Kris Msch", email: "Cordova PH", location: "Cordova PH", joinedDate: "April 20, 2026", status: "Inactive" },
-    { id: "4", name: "Joy Jung", email: "Lapu-Lapu City, PH", location: "Lapu-Lapu City, PH", joinedDate: "April 20, 2026", status: "Active" },
-  ]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
 
   const [metrics, setMetrics] = useState<AdminMetrics>({
-    totalUsers: 1256,
-    totalTransactions: 15320,
-    monthTransactions: 6421,
-    activeUsers: 892,
+    totalUsers: 0,
+    totalTransactions: 0,
+    monthTransactions: 0,
+    activeUsers: 0,
   });
 
-  const [locations, setLocations] = useState<LocationCount[]>([
-    { location: "Cordova", count: 240 },
-    { location: "Cebu City", count: 210 },
-    { location: "Lapu-Lapu City", count: 150 },
-    { location: "Mandaue City", count: 120 },
-  ]);
+  const [locations, setLocations] = useState<LocationCount[]>([]);
 
-  const [chartData, setChartData] = useState<ChartBar[]>([
-    { date: "April 1", green: 4500, gray: 2800 },
-    { date: "April 15", green: 4200, gray: 2900 },
-    { date: "April 22", green: 4000, gray: 2600 },
-    { date: "April 30", green: 4600, gray: 3100 },
-  ]);
+  const [chartData, setChartData] = useState<ChartBar[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
 
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -79,15 +77,17 @@ export default function AdminManageUsersPage() {
     async function loadAdminData() {
       try {
         setLoading(true);
-        const res = await apiClient.get("/users/admin/manage-users");
+        const [res, audit] = await Promise.all([
+          apiClient.get("/users/admin/manage-users"),
+          apiClient.get("/users/admin/audit-log"),
+        ]);
         if (res.data) {
-          if (res.data.users && res.data.users.length > 0) {
-            setUsers(res.data.users);
-          }
+          setUsers(res.data.users || []);
           if (res.data.metrics) setMetrics(res.data.metrics);
           if (res.data.locationBreakdown) setLocations(res.data.locationBreakdown);
           if (res.data.chartData) setChartData(res.data.chartData);
         }
+        setAuditLog(audit.data || []);
       } catch (err) {
         console.error("Failed to load admin management data", err);
       } finally {
@@ -97,27 +97,36 @@ export default function AdminManageUsersPage() {
     loadAdminData();
   }, []);
 
-  function toggleUserStatus(userId: string) {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userId ? { ...u, status: u.status === "Active" ? "Inactive" : "Active" } : u
-      )
-    );
-  }
-
   const filteredUsers = users.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.location.toLowerCase().includes(searchQuery.toLowerCase())
+      u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const chartMaximum = Math.max(1, ...chartData.flatMap((bar) => [bar.green, bar.gray]));
+
+  async function toggleStatus(managedUser: ManagedUser) {
+    const nextStatus = managedUser.status === "Active" ? "SUSPENDED" : "ACTIVE";
+    try {
+      setBusyUserId(managedUser.id);
+      setAdminMessage("");
+      await apiClient.patch(`/users/admin/users/${managedUser.id}/status`, { status: nextStatus });
+      setUsers((current) => current.map((item) => item.id === managedUser.id ? { ...item, status: nextStatus === "ACTIVE" ? "Active" : "Inactive" } : item));
+      setAdminMessage(`${managedUser.name} is now ${nextStatus === "ACTIVE" ? "active" : "suspended"}.`);
+      const audit = await apiClient.get("/users/admin/audit-log");
+      setAuditLog(audit.data || []);
+    } catch {
+      setAdminMessage("Unable to change this account status.");
+    } finally {
+      setBusyUserId(null);
+    }
+  }
 
   return (
-    <div className="flex min-h-screen bg-[#f7faf8] font-sans">
+    <div className="flex min-h-screen font-sans">
       <AdminSidebar />
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="app-main">
         {/* Header matching Figma */}
-        <div className="mb-6 pb-2">
+        <div className="app-page-header mb-6 pb-2">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 uppercase">MANAGE USERS</h1>
         </div>
 
@@ -144,29 +153,37 @@ export default function AdminManageUsersPage() {
                   <th className="py-3 px-4 font-bold text-gray-900">Email</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Joined Date</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Status</th>
+                  <th className="py-3 px-4 font-bold text-gray-900">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
+                {loading && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>
+                )}
+                {!loading && filteredUsers.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No users found.</td></tr>
+                )}
                 {filteredUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/50 transition">
                     <td className="py-3.5 px-4 font-semibold text-gray-900">{u.name}</td>
                     <td className="py-3.5 px-4 text-gray-600">{u.email}</td>
                     <td className="py-3.5 px-4 text-gray-600">{u.joinedDate}</td>
                     <td className="py-3.5 px-4">
-                      <button
-                        onClick={() => toggleUserStatus(u.id)}
-                        className={`font-bold text-xs cursor-pointer ${
+                      <span
+                        className={`font-bold text-xs ${
                           u.status === "Active" ? "text-emerald-600 hover:text-emerald-700" : "text-red-500 hover:text-red-600"
                         }`}
                       >
                         {u.status}
-                      </button>
+                      </span>
                     </td>
+                    <td className="py-3.5 px-4"><button type="button" disabled={busyUserId === u.id || u.id === user?.id} onClick={() => toggleStatus(u)} className={`rounded-lg px-3 py-1.5 font-bold text-white disabled:opacity-40 ${u.status === "Active" ? "bg-red-600" : "bg-emerald-700"}`}>{busyUserId === u.id ? "Saving..." : u.status === "Active" ? "Suspend" : "Reactivate"}</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {adminMessage && <p className="mt-3 text-xs font-semibold text-gray-700">{adminMessage}</p>}
         </div>
 
         {/* Section 2: 4 Summary Cards matching Figma 1:1 */}
@@ -174,13 +191,13 @@ export default function AdminManageUsersPage() {
           <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-sm">
             <p className="text-xs font-semibold text-gray-500">Total Users</p>
             <p className="mt-2 text-2xl font-extrabold text-gray-900">{metrics.totalUsers.toLocaleString()}</p>
-            <p className="mt-1 text-[10px] text-emerald-600 font-semibold">↑ +12 this week</p>
+            <p className="mt-1 text-[10px] text-emerald-600 font-semibold">+{metrics.newUsersThisWeek || 0} this week</p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-sm">
             <p className="text-xs font-semibold text-gray-500">Total Transactions</p>
             <p className="mt-2 text-2xl font-extrabold text-gray-900">{metrics.totalTransactions.toLocaleString()}</p>
-            <p className="mt-1 text-[10px] text-emerald-600 font-semibold">↑ +323 this week</p>
+            <p className="mt-1 text-[10px] text-emerald-600 font-semibold">+{metrics.weekTransactions || 0} this week</p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-sm">
@@ -192,7 +209,7 @@ export default function AdminManageUsersPage() {
           <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-sm">
             <p className="text-xs font-semibold text-gray-500">Active Users</p>
             <p className="mt-2 text-2xl font-extrabold text-gray-900">{metrics.activeUsers.toLocaleString()}</p>
-            <p className="mt-1 text-[10px] text-emerald-600 font-semibold">↑ 71% of total</p>
+            <p className="mt-1 text-[10px] text-gray-400">Signed in during the last 30 days</p>
           </div>
         </div>
 
@@ -209,11 +226,11 @@ export default function AdminManageUsersPage() {
                   <div className="flex items-end gap-1.5 h-40">
                     <div
                       className="w-8 bg-[#186849] rounded-t-md transition-all group-hover:bg-[#13543b]"
-                      style={{ height: `${(bar.green / 8000) * 100}%` }}
+                      style={{ height: `${(bar.green / chartMaximum) * 100}%` }}
                     />
                     <div
                       className="w-8 bg-gray-200 rounded-t-md transition-all group-hover:bg-gray-300"
-                      style={{ height: `${(bar.gray / 8000) * 100}%` }}
+                      style={{ height: `${(bar.gray / chartMaximum) * 100}%` }}
                     />
                   </div>
                   <span className="text-[11px] text-gray-600 font-semibold">{bar.date}</span>
@@ -224,7 +241,8 @@ export default function AdminManageUsersPage() {
 
           {/* Right: Users by Location */}
           <div className="bg-white p-6 rounded-3xl border border-gray-200/90 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Users by Location</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Users by General Region</h3>
+            <p className="mb-4 text-[10px] text-gray-400">Only aggregated, optional region data is shown; single-user groups are suppressed.</p>
 
             <div className="divide-y divide-gray-100 text-xs">
               {locations.map((item, idx) => (
@@ -233,7 +251,17 @@ export default function AdminManageUsersPage() {
                   <span className="font-bold text-gray-900">{item.count}</span>
                 </div>
               ))}
+              {locations.length === 0 && (
+                <p className="py-6 text-center text-[11px] text-gray-400">Location data is not collected.</p>
+              )}
             </div>
+          </div>
+        </div>
+        <div className="mt-6 rounded-3xl border border-gray-200/90 bg-white p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-bold text-gray-900">Recent Administrator Actions</h3>
+          <div className="divide-y divide-gray-100 text-xs">
+            {auditLog.slice(0, 10).map((entry) => <div key={entry.id} className="flex flex-wrap justify-between gap-2 py-3"><span className="font-semibold text-gray-800">{entry.action.replaceAll("_", " ")}</span><span className="text-gray-500">{entry.actor.email} · {new Date(entry.createdAt).toLocaleString()}</span></div>)}
+            {!loading && auditLog.length === 0 && <p className="py-4 text-gray-400">No administrator actions recorded yet.</p>}
           </div>
         </div>
       </main>

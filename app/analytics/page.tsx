@@ -3,296 +3,79 @@
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/ui/sidebar";
 import apiClient from "@/lib/apiClient";
-import { incomeSetupService } from "@/services/incomeSetupService";
 import { useAuth } from "@/context/Authcontext";
 import { exportFinancialReport } from "@/lib/pdfExport";
 import { exportTransactionsCSV } from "@/lib/csvExport";
-import SpendingForecast from "../components/SpendingForecast";
-import { TransactionType } from "../types";
+import type { Transaction, TransactionType } from "../types";
 
-interface CategoryStat {
-  name: string;
-  pct: number;
-  amount: number;
-  color: string;
+type Period = "week" | "month" | "last-month" | "custom";
+interface AnalyticsResponse {
+  period: { key: Period; start: string; end: string };
+  summary: { totalIncome: number; configuredIncome: number; totalExpenses: number; netCashFlow: number; transactionCount: number };
+  categories: Array<{ name: string; amount: number; percentage: number }>;
+  topCategory: { name: string; amount: number; percentage: number } | null;
+  trend: Array<{ date: string; income: number; expense: number }>;
+  budget: { configured: boolean; target: number; spent: number; remaining: number; percentage: number };
+  savings: { saved: number; target: number; percentage: number; goals: number };
+  comparison: { previousExpenses: number; expenseChangePct: number | null };
+  forecast: { projectedExpenses: number; projectedBalance: number };
+  transactions: Transaction[];
 }
 
-interface TrendPoint {
-  label: string;
-  amount: number;
-}
-
-interface BackendTransaction {
-  id: string;
-  date?: string;
-  createdAt?: string;
-  description?: string;
-  category?: string;
-  type: string;
-  amount: number;
-}
+const palette = ["#047857", "#0284c7", "#f59e0b", "#dc2626", "#7c3aed", "#db2777", "#64748b"];
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
-  const [totalSpent, setTotalSpent] = useState(0);
-  const [totalIncome, setTotalIncome] = useState(0);
-  const [safeToSpend, setSafeToSpend] = useState(0);
-  const [transactions, setTransactions] = useState<BackendTransaction[]>([]);
-  const [categories, setCategories] = useState<CategoryStat[]>([]);
+  const [period, setPeriod] = useState<Period>("month");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [data, setData] = useState<AnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadAnalytics() {
-      try {
-        const [txRes, setupRes] = await Promise.all([
-          apiClient.get("/transactions"),
-          incomeSetupService.getIncomeSetup(),
-        ]);
+    if (period === "custom" && (!startDate || !endDate)) return;
+    const timer = window.setTimeout(() => {
+      setLoading(true); setError("");
+      const query = new URLSearchParams({ period });
+      if (period === "custom") { query.set("startDate", startDate); query.set("endDate", endDate); }
+      apiClient.get(`/analytics?${query}`).then((response) => setData(response.data)).catch(() => setError("Unable to generate analytics for this period.")).finally(() => setLoading(false));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [period, startDate, endDate]);
 
-        setSafeToSpend(setupRes.safeToSpend);
+  const trend = data?.trend || [];
+  const trendMax = Math.max(1, ...trend.flatMap((point) => [point.income, point.expense]));
+  const points = (key: "income" | "expense") => trend.map((point, index) => `${trend.length <= 1 ? 250 : 40 + (index * 430) / (trend.length - 1)},${135 - (point[key] / trendMax) * 110}`).join(" ");
+  const donut = useMemo(() => {
+    const categories = data?.categories || [];
+    return categories.map((category, index) => ({ ...category, color: palette[index % palette.length], offset: -categories.slice(0, index).reduce((sum, item) => sum + item.percentage, 0) }));
+  }, [data]);
 
-        if (txRes.data && txRes.data.length > 0) {
-          setTransactions(txRes.data);
-
-          const responseTransactions = txRes.data as BackendTransaction[];
-          const expenses = responseTransactions.filter((t) => (t.type || "").toUpperCase() === "EXPENSE");
-          const incomes = responseTransactions.filter((t) => (t.type || "").toUpperCase() === "INCOME");
-
-          const totalExp = expenses.reduce((sum, t) => sum + t.amount, 0);
-          const totalInc = incomes.reduce((sum, t) => sum + t.amount, 0);
-
-          setTotalSpent(totalExp);
-          setTotalIncome(totalInc || setupRes.setup?.totalIncome || 0);
-
-          if (totalExp > 0) {
-            const catMap: Record<string, number> = {};
-            expenses.forEach((t) => {
-              const cat = t.category || "Others";
-              catMap[cat] = (catMap[cat] || 0) + t.amount;
-            });
-
-            const palette = ["#1e6b52", "#b09e2e", "#81c798", "#f15b5b", "#5c9edd", "#9c27b0", "#ff9800"];
-            let idx = 0;
-            const computed: CategoryStat[] = Object.keys(catMap).map((catName) => {
-              const amt = catMap[catName];
-              const pct = Math.round((amt / totalExp) * 100);
-              const color = palette[idx % palette.length];
-              idx++;
-              return { name: catName, pct, amount: amt, color };
-            });
-
-            computed.sort((a, b) => b.amount - a.amount);
-            setCategories(computed);
-          }
-        }
-      } catch (err) {
-        console.error("Analytics fetch error", err);
-      }
-    }
-    loadAnalytics();
-  }, []);
-
-  const categorySegments = useMemo(
-    () => categories.map((category, index) => ({
-      ...category,
-      offset: -categories
-        .slice(0, index)
-        .reduce((sum, item) => sum + item.pct, 0),
-    })),
-    [categories],
-  );
-
-  const weeklyTrend = useMemo<TrendPoint[]>(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const weekCount = Math.ceil(new Date(year, month + 1, 0).getDate() / 7);
-    const weeklyTotals = Array.from({ length: weekCount }, () => 0);
-
-    transactions.forEach((transaction) => {
-      if ((transaction.type || "").toUpperCase() !== "EXPENSE") return;
-      const date = new Date(transaction.date || transaction.createdAt || "");
-      if (Number.isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== month) return;
-      const weekIndex = Math.min(Math.floor((date.getDate() - 1) / 7), weekCount - 1);
-      weeklyTotals[weekIndex] += transaction.amount;
-    });
-
-    return weeklyTotals.map((amount, index) => ({ label: `Week ${index + 1}`, amount }));
-  }, [transactions]);
-
-  const trendMax = Math.max(...weeklyTrend.map((point) => point.amount), 1);
-  const trendPoints = weeklyTrend.map((point, index) => ({
-    ...point,
-    x: weeklyTrend.length === 1 ? 260 : 50 + (index * 430) / (weeklyTrend.length - 1),
-    y: 130 - (point.amount / trendMax) * 110,
-  }));
-  const trendPointString = trendPoints.map((point) => `${point.x},${point.y}`).join(" ");
-  const trendGrid = [1, 0.75, 0.5, 0.25, 0].map((ratio, index) => ({
-    ratio,
-    y: 20 + index * 27.5,
-    label: Math.round(trendMax * ratio),
-  }));
-
-  const topCategory = categories[0] || { name: "Expenses", pct: 0, amount: 0 };
-
-  function handleExportPDF() {
-    exportFinancialReport({
-      userName: user?.name || "User",
-      userEmail: user?.email || "",
-      safeToSpend,
-      totalIncome,
-      totalExpense: totalSpent,
-      netBalance: totalIncome - totalSpent,
-      transactions: transactions.map(t => ({
-        id: t.id,
-        date: t.date ? t.date.split("T")[0] : "",
-        description: t.description || t.category || "Transaction",
-        category: t.category || "Others",
-        type: (t.type || "expense").toLowerCase() as TransactionType,
-        amount: t.amount,
-      })),
-    });
+  function mappedTransactions() {
+    return (data?.transactions || []).map((item) => ({ ...item, type: item.type.toLowerCase() as TransactionType, date: item.date?.split("T")[0] || "" }));
+  }
+  function exportPdf() {
+    if (!data) return;
+    exportFinancialReport({ userName: user?.name || "User", userEmail: user?.email || "", safeToSpend: data.forecast.projectedBalance, totalIncome: data.summary.totalIncome, totalExpense: data.summary.totalExpenses, netBalance: data.summary.netCashFlow, transactions: mappedTransactions() });
   }
 
-  return (
-    <div className="flex min-h-screen bg-[#f7faf8]">
-      <Sidebar />
-      <main className="flex-1 p-8 overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200/60">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">ANALYTICS</h1>
-            <p className="text-xs text-gray-500 mt-1">Visualize category distributions, spending trends, and export report.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() =>
-                exportTransactionsCSV(
-                  transactions.map((t) => ({
-                    date: t.date ? t.date.split("T")[0] : "",
-                    description: t.description || t.category || "Transaction",
-                    category: t.category || "Others",
-                    type: (t.type || "expense").toLowerCase() as TransactionType,
-                    amount: t.amount,
-                  }))
-                )
-              }
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition"
-            >
-              <span>📊</span> Export CSV
-            </button>
-            <button
-              onClick={handleExportPDF}
-              className="bg-[#186849] hover:bg-[#13543b] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition"
-            >
-              <span>📄</span> Export PDF Report
-            </button>
-          </div>
-        </div>
-
-        {/* Top Card: Spending by Category */}
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm mb-8">
-          <h2 className="text-base font-bold text-gray-900 mb-6">Spending by Category</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            {/* SVG Donut Chart */}
-            <div className="relative flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-56 h-56 transform -rotate-90">
-                {categorySegments.map((category) => (
-                  <circle
-                    key={category.name}
-                    cx="50"
-                    cy="50"
-                    r="35"
-                    fill="transparent"
-                    stroke={category.color}
-                    strokeWidth="12"
-                    strokeDasharray={`${category.pct} ${100 - category.pct}`}
-                    strokeDashoffset={category.offset}
-                    pathLength="100"
-                  />
-                ))}
-              </svg>
-              <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-xl font-bold text-gray-900">₱{totalSpent.toLocaleString()}</span>
-                <span className="text-xs text-gray-400 font-medium">Total Spent</span>
-              </div>
-            </div>
-
-            {/* Category Breakdown Table/Legend */}
-            <div className="space-y-3 text-xs">
-              {categories.map((c, i) => (
-                <div key={i} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition border border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <span className="h-4 w-4 rounded-md shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="font-bold text-gray-800 text-sm">{c.name}</span>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className="font-semibold text-gray-600">{c.pct}%</span>
-                    <span className="font-bold text-gray-900 w-24 text-right">₱{c.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-                  </div>
-                </div>
-              ))}
-              <p className="text-[10px] text-gray-400 pt-2 border-t border-gray-100">
-                Percentages calculated based on overall expenses logged.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Card: Spending Trend */}
-        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6">
-          <h2 className="text-base font-bold text-gray-900">Spending Trend</h2>
-
-          {/* SVG Trend Line Graph */}
-          <div className="relative h-56 w-full pt-4">
-            <svg viewBox="0 0 500 150" className="w-full h-full overflow-visible">
-              {trendGrid.map((gridLine) => (
-                <g key={gridLine.ratio}>
-                  <line
-                    x1="40"
-                    y1={gridLine.y}
-                    x2="480"
-                    y2={gridLine.y}
-                    stroke={gridLine.ratio === 0 ? "#e0e0e0" : "#f0f0f0"}
-                    strokeWidth="1"
-                  />
-                  <text x="2" y={gridLine.y + 4} fill="#999" fontSize="9" fontWeight="600">
-                    ₱{gridLine.label.toLocaleString("en-US")}
-                  </text>
-                </g>
-              ))}
-
-              <polyline
-                points={trendPointString}
-                fill="none"
-                stroke="#16a34a"
-                strokeWidth="2.5"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-
-              {trendPoints.map((point) => (
-                <g key={point.label}>
-                  <circle cx={point.x} cy={point.y} r="4" fill="#ffffff" stroke="#16a34a" strokeWidth="2" />
-                  <title>{`${point.label}: ₱${point.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}</title>
-                  <text x={point.x} y="146" textAnchor="middle" fill="#666" fontSize="9">
-                    {point.label}
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
-
-          {/* Interpretation Callout Banner */}
-          <div className="bg-[#eaf8f0] border border-emerald-200 p-4 rounded-2xl text-xs text-emerald-900 font-medium">
-            <span className="font-bold text-emerald-800 block mb-1">Financial Analysis Interpretation</span>
-            <strong>{topCategory.name}</strong> accounts for <strong>{topCategory.pct}%</strong> of your total spending because you spent ₱{topCategory.amount.toLocaleString()} out of ₱{totalSpent.toLocaleString()} this period. Your current Safe-to-Spend is <strong>₱{safeToSpend.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>.
-          </div>
-        </div>
-        {/* Spending Forecast */}
-        <SpendingForecast transactions={transactions} totalIncome={totalIncome} />
-      </main>
-    </div>
-  );
+  return <div className="flex min-h-screen bg-[#f7f9f8]"><Sidebar /><main className="app-main">
+    <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4"><div><h1>Analytics</h1><p className="mt-1 text-xs text-gray-500">Every card and chart below uses the same selected period.</p></div><div className="flex flex-wrap gap-2"><button onClick={() => exportTransactionsCSV(mappedTransactions())} className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800">Export CSV</button><button onClick={exportPdf} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Export PDF</button></div></header>
+    <div className="mb-6 flex flex-wrap items-end gap-2 rounded-2xl border border-gray-200 bg-white p-4">{(["week", "month", "last-month", "custom"] as Period[]).map((option) => <button key={option} onClick={() => setPeriod(option)} className={`rounded-full px-4 py-2 text-xs font-bold ${period === option ? "bg-emerald-700 text-white" : "bg-gray-100 text-gray-600"}`}>{option.replace("-", " ")}</button>)}{period === "custom" && <><label className="text-[10px] font-bold uppercase text-gray-500">From<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="filter-input mt-1" /></label><label className="text-[10px] font-bold uppercase text-gray-500">To<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="filter-input mt-1" /></label></>}</div>
+    {error && <p className="rounded-xl bg-red-50 p-4 text-xs text-red-700">{error}</p>}
+    {loading || !data ? <p className="py-16 text-center text-xs text-gray-400">Generating consistent period analytics…</p> : <>
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Income received" value={data.summary.totalIncome} detail={data.summary.totalIncome ? "Recorded in this period" : `Configured baseline ₱${data.summary.configuredIncome.toLocaleString()}`} tone="emerald" /><Metric label="Expenses" value={data.summary.totalExpenses} detail={`${data.summary.transactionCount} money movements`} tone="red" /><Metric label="Net cash flow" value={data.summary.netCashFlow} detail="Income minus expenses" tone={data.summary.netCashFlow < 0 ? "red" : "blue"} /><Metric label="Projected expenses" value={data.forecast.projectedExpenses} detail={`Projected balance ₱${data.forecast.projectedBalance.toLocaleString()}`} tone="amber" /></section>
+      <section className="mb-6 grid gap-6 lg:grid-cols-2">
+        <article className="rounded-2xl border border-gray-200 bg-white p-6"><h2 className="text-sm font-bold">Income versus expenses</h2><div className="mt-5 h-56"><svg viewBox="0 0 500 160" className="h-full w-full">{[25, 60, 95, 130].map((y) => <line key={y} x1="35" y1={y} x2="480" y2={y} stroke="#eef2f1" />)}<polyline points={points("income")} fill="none" stroke="#059669" strokeWidth="3" /><polyline points={points("expense")} fill="none" stroke="#dc2626" strokeWidth="3" />{trend.map((point, index) => <text key={point.date} x={trend.length <= 1 ? 250 : 40 + (index * 430) / (trend.length - 1)} y="153" textAnchor="middle" fontSize="8" fill="#64748b">{new Date(`${point.date}T12:00:00`).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</text>)}</svg></div><div className="flex gap-4 text-[10px] font-bold"><span className="text-emerald-700">● Income</span><span className="text-red-600">● Expenses</span></div></article>
+        <article className="rounded-2xl border border-gray-200 bg-white p-6"><h2 className="text-sm font-bold">Spending by category</h2><div className="mt-4 grid grid-cols-2 items-center gap-4"><div className="relative"><svg viewBox="0 0 100 100" className="w-full -rotate-90">{donut.map((item) => <circle key={item.name} cx="50" cy="50" r="35" fill="transparent" stroke={item.color} strokeWidth="12" strokeDasharray={`${item.percentage} ${100 - item.percentage}`} strokeDashoffset={item.offset} pathLength="100" />)}</svg></div><div className="space-y-2">{donut.map((item) => <div key={item.name} className="flex justify-between gap-2 text-[10px]"><span><i className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: item.color }} />{item.name}</span><strong>{item.percentage}%</strong></div>)}</div></div></article>
+      </section>
+      <section className="mb-6 grid gap-4 md:grid-cols-3"><ProgressCard title="Budget usage" value={data.budget.percentage} amount={`${format(data.budget.spent)} of ${format(data.budget.target)}`} warning={data.budget.percentage >= 80} /><ProgressCard title="Savings progress" value={data.savings.percentage} amount={`${format(data.savings.saved)} of ${format(data.savings.target)}`} /><article className="rounded-2xl border border-gray-200 bg-white p-5"><p className="text-xs font-bold">Period comparison</p><p className={`mt-3 text-2xl font-extrabold ${data.comparison.expenseChangePct !== null && data.comparison.expenseChangePct > 0 ? "text-red-600" : "text-emerald-700"}`}>{data.comparison.expenseChangePct === null ? "New" : `${data.comparison.expenseChangePct > 0 ? "+" : ""}${data.comparison.expenseChangePct}%`}</p><p className="mt-1 text-[10px] text-gray-500">versus the previous equivalent period</p></article></section>
+      <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-xs text-emerald-950"><strong className="block text-sm">Explainable insight</strong><p className="mt-2 leading-6">{data.topCategory ? `${data.topCategory.name} is your highest category at ${format(data.topCategory.amount)}, representing ${data.topCategory.percentage}% of expenses from ${new Date(data.period.start).toLocaleDateString("en-PH")} to ${new Date(data.period.end).toLocaleDateString("en-PH")}.` : "No expenses were recorded in this period."} {data.comparison.expenseChangePct !== null ? `Overall expenses are ${Math.abs(data.comparison.expenseChangePct)}% ${data.comparison.expenseChangePct > 0 ? "higher" : "lower"} than the previous equivalent period.` : "More history is needed for a comparison."}</p></article>
+    </>}
+  </main></div>;
 }
+
+function format(amount: number) { return `₱${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`; }
+function Metric({ label, value, detail, tone }: { label: string; value: number; detail: string; tone: "emerald" | "red" | "blue" | "amber" }) { const colors = { emerald: "text-emerald-700", red: "text-red-600", blue: "text-blue-700", amber: "text-amber-700" }; return <article className="rounded-2xl border border-gray-200 bg-white p-5"><p className="text-xs text-gray-500">{label}</p><p className={`mt-2 text-2xl font-extrabold ${colors[tone]}`}>{format(value)}</p><p className="mt-1 text-[10px] text-gray-400">{detail}</p></article>; }
+function ProgressCard({ title, value, amount, warning }: { title: string; value: number; amount: string; warning?: boolean }) { return <article className="rounded-2xl border border-gray-200 bg-white p-5"><div className="flex justify-between text-xs"><strong>{title}</strong><span>{value}%</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className={`h-full ${warning ? "bg-amber-500" : "bg-emerald-600"}`} style={{ width: `${Math.min(100, value)}%` }} /></div><p className="mt-2 text-[10px] text-gray-500">{amount}</p></article>; }

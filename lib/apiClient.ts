@@ -1,7 +1,14 @@
 import axios from "axios";
-import { AUTH } from "@/constants";
-
 let refreshRequest: Promise<string> | null = null;
+let accessToken: string | null = null;
+
+export function setApiAccessToken(token: string | null) {
+  accessToken = token;
+}
+
+export function getApiAccessToken() {
+  return accessToken;
+}
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
@@ -13,11 +20,8 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem(AUTH.TOKEN_KEY);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -47,15 +51,12 @@ apiClient.interceptors.response.use(
         }
 
         const accessToken = await refreshRequest;
-        if (typeof window !== "undefined") {
-          localStorage.setItem(AUTH.TOKEN_KEY, accessToken);
-        }
+        setApiAccessToken(accessToken);
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         if (typeof window !== "undefined") {
-          localStorage.removeItem(AUTH.TOKEN_KEY);
-          localStorage.removeItem("casha_user");
+          setApiAccessToken(null);
           window.location.href = "/login";
         }
         return Promise.reject(refreshError);

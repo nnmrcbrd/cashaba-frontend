@@ -4,11 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/ui/sidebar";
 import { ChatMessage } from "../types";
 import apiClient from "@/lib/apiClient";
+import axios from "axios";
 
 export default function AIAssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [requiresConfirmation, setRequiresConfirmation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -21,7 +23,7 @@ export default function AIAssistantPage() {
         const res = await apiClient.get("/ai/history");
         if (res.data && res.data.length > 0) {
           const loaded: ChatMessage[] = [];
-          res.data.forEach((item: any) => {
+          res.data.forEach((item: AiHistoryItem) => {
             loaded.push({
               id: item.id + "-q",
               role: "user",
@@ -36,6 +38,7 @@ export default function AIAssistantPage() {
             });
           });
           setMessages(loaded);
+          setRequiresConfirmation(res.data.at(-1)?.state === "AWAITING_CONFIRMATION");
         } else {
           // No history — show welcome + auto-trigger daily brief
           setMessages([
@@ -78,24 +81,21 @@ export default function AIAssistantPage() {
     scrollToBottom();
   }, [messages, loading]);
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
-
+  async function sendMessage(text: string) {
+    if (!text.trim() || loading) return;
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: input,
+      content: text,
       timestamp: currentTime,
     };
     setMessages((prev) => [...prev, userMsg]);
-    const currentInput = input;
     setInput("");
     setLoading(true);
 
     try {
-      const res = await apiClient.post("/ai/chat", { message: currentInput });
+      const res = await apiClient.post("/ai/chat", { message: text });
       const replyMsg: ChatMessage = {
         id: res.data.id || crypto.randomUUID(),
         role: "assistant",
@@ -103,14 +103,16 @@ export default function AIAssistantPage() {
         timestamp: currentTime,
       };
       setMessages((prev) => [...prev, replyMsg]);
+      setRequiresConfirmation(Boolean(res.data.requiresConfirmation));
     } catch (err) {
       console.error("AI Error:", err);
+      const responseMessage = axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : null;
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: "Sorry, I had trouble processing that request. Please try again.",
+          content: responseMessage || "I couldn't process that request. Please check the details and try again.",
           timestamp: currentTime,
         },
       ]);
@@ -119,26 +121,31 @@ export default function AIAssistantPage() {
     }
   }
 
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    await sendMessage(input);
+  }
+
   const fillPrompt = (text: string) => {
     setInput(text);
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f7faf8]">
+    <div className="flex min-h-screen bg-[#f7f9f8]">
       <Sidebar />
-      <main className="flex-1 p-8 overflow-y-auto flex flex-col">
+      <main className="app-main flex flex-col">
         {/* Header */}
-        <div className="mb-6 pb-4 border-b border-gray-200/60 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">AI ASSISTANT</h1>
+        <div className="app-page-header mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/60 pb-4">
+          <h1>AI Assistant</h1>
           <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-semibold">
             ✨ Powered by Gemini
           </span>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <div className="grid flex-1 grid-cols-1 items-start gap-6 lg:grid-cols-4">
           {/* Chat Window */}
-          <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col h-[calc(100vh-180px)] overflow-hidden">
+          <div className="flex h-[70vh] min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:col-span-3 lg:h-[calc(100vh-180px)]">
             <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[#f9fbf9]">
               {messages.map((m) => {
                 const isUser = m.role === "user";
@@ -171,6 +178,7 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Input Footer */}
+            {requiresConfirmation && !loading && <div className="flex gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3"><button type="button" onClick={() => sendMessage("confirm")} className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Confirm and save</button><button type="button" onClick={() => sendMessage("cancel")} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700">Cancel</button></div>}
             <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-200 flex gap-3">
               <input
                 className="flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -201,16 +209,16 @@ export default function AIAssistantPage() {
                   className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
                 >
                   <p className="font-bold text-emerald-700">☀️ Daily Brief</p>
-                  <p className="text-gray-500 text-[11px]">"Give me my daily financial brief"</p>
+                  <p className="text-gray-500 text-[11px]">&quot;Give me my daily financial brief&quot;</p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => fillPrompt("Spent 150 on groceries")}
+                  onClick={() => fillPrompt("Spent 150 on groceries from Cash today")}
                   className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
                 >
                   <p className="font-bold text-emerald-700">🛒 Expense Logging</p>
-                  <p className="text-gray-500 text-[11px]">"Spent 150 on groceries"</p>
+                  <p className="text-gray-500 text-[11px]">&quot;Spent 150 on groceries from Cash today&quot;</p>
                 </button>
 
                 <button
@@ -219,17 +227,19 @@ export default function AIAssistantPage() {
                   className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
                 >
                   <p className="font-bold text-emerald-700">✏️ Category Correction</p>
-                  <p className="text-gray-500 text-[11px]">"That should be Transport not Food"</p>
+                  <p className="text-gray-500 text-[11px]">&quot;That should be Transport not Food&quot;</p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => fillPrompt("Add 500 to Emergency Fund")}
+                  onClick={() => fillPrompt("Save 500 to Emergency Fund from Cash today")}
                   className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
                 >
                   <p className="font-bold text-emerald-700">🎯 Savings Allocation</p>
-                  <p className="text-gray-500 text-[11px]">"Add 500 to Emergency Fund"</p>
+                  <p className="text-gray-500 text-[11px]">&quot;Save 500 to Emergency Fund from Cash today&quot;</p>
                 </button>
+
+                <button type="button" onClick={() => fillPrompt("Transfer 1000 from Cash to GCash today")} className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"><p className="font-bold text-emerald-700">Wallet Transfer</p><p className="text-gray-500 text-[11px]">&quot;Transfer 1000 from Cash to GCash today&quot;</p></button>
 
                 <button
                   type="button"
@@ -237,7 +247,16 @@ export default function AIAssistantPage() {
                   className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
                 >
                   <p className="font-bold text-emerald-700">🤝 Debt Record</p>
-                  <p className="text-gray-500 text-[11px]">"I owe 2000 to Anna due July 30"</p>
+                  <p className="text-gray-500 text-[11px]">&quot;I owe 2000 to Anna due July 30&quot;</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fillPrompt("I collected 500 from Anna")}
+                  className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
+                >
+                  <p className="font-bold text-emerald-700">Loan Collection</p>
+                  <p className="text-gray-500 text-[11px]">&quot;I collected 500 from Anna&quot;</p>
                 </button>
 
                 <button
@@ -246,7 +265,7 @@ export default function AIAssistantPage() {
                   className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"
                 >
                   <p className="font-bold text-emerald-700">📊 Safe-to-Spend Summary</p>
-                  <p className="text-gray-500 text-[11px]">"Show my summary"</p>
+                  <p className="text-gray-500 text-[11px]">&quot;Show my summary&quot;</p>
                 </button>
               </div>
             </div>
@@ -259,4 +278,12 @@ export default function AIAssistantPage() {
       </main>
     </div>
   );
+}
+
+interface AiHistoryItem {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+  state?: string;
 }

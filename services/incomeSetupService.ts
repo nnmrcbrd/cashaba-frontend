@@ -11,7 +11,14 @@ export interface FixedExpense {
   id: string;
   name: string;
   amount: number;
-  dueDate?: string;
+  amountPaid: number;
+  remaining: number;
+  dueDate?: string | null;
+  frequency: "ONE_TIME" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
+  status: "PENDING" | "PARTIALLY_PAID" | "PAID" | "OVERDUE" | "COMPLETED";
+  category: string;
+  reminderDays: number;
+  walletId?: string | null;
 }
 
 export interface SavingsGoal {
@@ -23,8 +30,26 @@ export interface SavingsGoal {
   isCompleted: boolean;
 }
 
+export interface SafeToSpendBreakdown {
+  configuredIncome?: number;
+  actualIncome?: number;
+  totalIncome: number;
+  totalFixed: number;
+  totalSavings: number;
+  totalExpenses: number;
+  totalLoanRepayments?: number;
+  rawSafeToSpend: number;
+  safeToSpend: number;
+}
+
+export interface IncomeSetupResponse {
+  setup: IncomeSetup | null;
+  safeToSpend: number;
+  breakdown?: SafeToSpendBreakdown;
+}
+
 export const incomeSetupService = {
-  async getIncomeSetup(): Promise<{ setup: IncomeSetup | null; safeToSpend: number }> {
+  async getIncomeSetup(): Promise<IncomeSetupResponse> {
     const res = await apiClient.get("/income-setup");
     return res.data;
   },
@@ -42,8 +67,13 @@ export const incomeSetupService = {
     return res.data;
   },
 
-  async addFixedExpense(name: string, amount: number, dueDate?: string): Promise<{ expense: FixedExpense; safeToSpend: number }> {
-    const res = await apiClient.post("/income-setup/fixed-expenses", { name, amount, dueDate });
+  async addFixedExpense(name: string, amount: number, dueDate?: string, details?: Partial<Pick<FixedExpense, "frequency" | "category" | "reminderDays" | "walletId">>): Promise<{ expense: FixedExpense; safeToSpend: number }> {
+    const res = await apiClient.post("/income-setup/fixed-expenses", { name, amount, dueDate: dueDate || null, ...details });
+    return res.data;
+  },
+
+  async updateFixedExpense(id: string, updates: Partial<Pick<FixedExpense, "name" | "amount" | "dueDate" | "frequency" | "category" | "reminderDays" | "walletId">>): Promise<{ expense: FixedExpense; safeToSpend: number }> {
+    const res = await apiClient.patch(`/income-setup/fixed-expenses/${id}`, updates);
     return res.data;
   },
 
@@ -62,7 +92,7 @@ export const incomeSetupService = {
     return res.data;
   },
 
-  async updateSavingsGoal(id: string, updates: { addAmount?: number; isCompleted?: boolean; monthlyAllocation?: number }): Promise<{ goal: SavingsGoal; safeToSpend: number }> {
+  async updateSavingsGoal(id: string, updates: { addAmount?: number; withdrawAmount?: number; walletId?: string | null; isCompleted?: boolean; monthlyAllocation?: number }): Promise<{ goal: SavingsGoal; safeToSpend: number }> {
     const res = await apiClient.patch(`/income-setup/savings-goals/${id}`, updates);
     return res.data;
   },

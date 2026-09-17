@@ -1,188 +1,196 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Goal, Gauge } from "lucide-react";
 import { ROUTES } from "@/constants";
 import apiClient from "@/lib/apiClient";
 import { incomeSetupService } from "@/services/incomeSetupService";
+import OnboardingShell, {
+  onboardingInputClass,
+  onboardingPrimaryButtonClass,
+} from "@/app/components/onboarding/OnboardingShell";
+import { useAuth } from "@/context/Authcontext";
 
 export default function OnboardingBudgetPage() {
   const router = useRouter();
-
-  // Monthly Budget limit state
   const [budgetLimit, setBudgetLimit] = useState("");
-
-  // Initial Savings Goal state (optional)
   const [goalName, setGoalName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [monthlyAllocation, setMonthlyAllocation] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [review, setReview] = useState({ income: 0, obligations: 0, safeToSpend: 0 });
+  const { user, refreshUser } = useAuth();
+  const suggestedGoal = user?.role?.includes("Student") ? "Tuition or school expenses" : user?.role?.includes("Married") ? "Household emergency fund" : user?.role?.includes("Freelance") ? "Income buffer" : "Emergency fund";
 
-  async function handleFinish(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    Promise.all([incomeSetupService.getIncomeSetup(), incomeSetupService.getFixedExpenses()]).then(([setup, obligations]) => setReview({ income: setup.setup?.totalIncome || 0, obligations: obligations.reduce((sum, item) => sum + item.amount, 0), safeToSpend: setup.safeToSpend })).catch(() => undefined);
+  }, []);
+
+  async function handleFinish(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      // 1. Update overall monthly target budget if provided
-      if (budgetLimit && parseFloat(budgetLimit) > 0) {
+      if (budgetLimit && Number.parseFloat(budgetLimit) > 0) {
         await apiClient.put("/budget", {
-          targetAmount: parseFloat(budgetLimit),
+          targetAmount: Number.parseFloat(budgetLimit),
         });
       }
 
-      // 2. Add initial savings goal if name & target amount provided
-      if (goalName.trim() && targetAmount && parseFloat(targetAmount) > 0) {
+      if (goalName.trim() && targetAmount && Number.parseFloat(targetAmount) > 0) {
         await incomeSetupService.addSavingsGoal(
           goalName.trim(),
-          parseFloat(targetAmount),
-          monthlyAllocation ? parseFloat(monthlyAllocation) : 0
+          Number.parseFloat(targetAmount),
+          monthlyAllocation ? Number.parseFloat(monthlyAllocation) : 0,
         );
       }
 
-      // 3. Complete onboarding -> navigate to Dashboard
+      await apiClient.patch("/users/me/onboarding", { step: 5, complete: true });
+      await refreshUser();
       router.push(ROUTES.DASHBOARD);
-    } catch (err) {
-      console.error("Failed to save budget & goals setup:", err);
-      setError("Failed to save budget settings. Please try again.");
+    } catch (reason) {
+      console.error("Failed to save budget and goals setup:", reason);
+      setError("Unable to save your budget settings. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  function handleSkip() {
+  async function finishWithoutPlan() {
+    await apiClient.patch("/users/me/onboarding", { step: 5, complete: true });
+    await refreshUser();
     router.push(ROUTES.DASHBOARD);
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#eff2f0] px-4 py-8 font-sans">
-      <div className="w-full max-w-lg rounded-[28px] bg-white p-8 sm:p-10 shadow-lg border border-gray-100">
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider">
-            Step 4 of 4
-          </span>
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-800 transition underline"
-          >
-            Skip for now
-          </button>
-        </div>
+    <OnboardingShell
+      step={4}
+      title="Set a budget and first goal"
+      description="Create a spending ceiling and, if useful, one savings target. Both values can be changed after onboarding."
+      asideTitle="Turn your baseline into a practical plan."
+      asideDescription="A budget sets a spending boundary. A savings allocation reserves part of your income before Safe-to-Spend is calculated."
+      onSkip={() => void finishWithoutPlan()}
+    >
+      <form onSubmit={handleFinish} className="space-y-5">
+        <section className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center"><div><p className="text-[10px] font-bold uppercase text-emerald-700">Income</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.income.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-amber-700">Obligations</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.obligations.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-blue-700">Safe now</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.safeToSpend.toLocaleString()}</p></div>{review.obligations > review.income && <p className="col-span-3 mt-2 rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">Your obligations exceed your configured income. Reduce commitments before finishing.</p>}</section>
+        <section className="rounded-2xl border border-slate-200 p-5">
+          <div className="flex gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+              <Gauge size={19} />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Monthly spending limit</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-500">The maximum total you plan to spend during a month.</p>
+            </div>
+          </div>
+          <label htmlFor="budget-limit" className="sr-only">Monthly spending limit</label>
+          <div className="relative mt-4">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-emerald-800">₱</span>
+            <input
+              id="budget-limit"
+              className={`${onboardingInputClass} pl-10 text-base font-semibold`}
+              type="number"
+              inputMode="decimal"
+              placeholder="20,000.00"
+              value={budgetLimit}
+              onChange={(event) => setBudgetLimit(event.target.value)}
+              min="0"
+              step="0.01"
+            />
+          </div>
+        </section>
 
-        <h1 className="mb-1 text-2xl font-bold text-gray-900 tracking-tight">
-          Budget & Goals Setup
-        </h1>
-        <p className="mb-6 text-xs text-gray-600">
-          Set your overall monthly budget limit and kickstart your first savings goal.
-        </p>
+        <section className="rounded-2xl border border-slate-200 p-5">
+          <div className="flex gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700">
+              <Goal size={19} />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">
+                First savings goal <span className="font-medium text-slate-400">(optional)</span>
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Based on your role, a useful starting point could be: {suggestedGoal}.</p>
+            </div>
+          </div>
 
-        <form onSubmit={handleFinish} className="space-y-6">
-          {/* Section 1: Monthly Budget Target */}
-          <div className="border-t border-gray-100 pt-4">
-            <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1">
-              Monthly Spend Budget Limit
-            </label>
-            <p className="text-[11px] text-gray-500 mb-3">
-              Maximum total amount you plan to spend per month.
-            </p>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-700">
-                ₱
-              </span>
+          <div className="mt-4 space-y-4">
+            <div>
+              <label htmlFor="goal-name" className="text-xs font-semibold text-slate-700">Goal name</label>
               <input
-                className="w-full border border-gray-300 pl-10 pr-4 py-3 text-lg font-bold text-gray-900 focus:outline-none focus:border-emerald-600 rounded-lg transition"
-                type="number"
-                placeholder="20,000.00"
-                value={budgetLimit}
-                onChange={(e) => setBudgetLimit(e.target.value)}
-                min="0"
-                step="any"
+                id="goal-name"
+                className={`${onboardingInputClass} mt-2`}
+                type="text"
+                placeholder={`e.g. ${suggestedGoal}`}
+                value={goalName}
+                onChange={(event) => setGoalName(event.target.value)}
+                maxLength={80}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CurrencyField
+                id="target-amount"
+                label="Target amount"
+                placeholder="10,000.00"
+                value={targetAmount}
+                onChange={setTargetAmount}
+              />
+              <CurrencyField
+                id="monthly-allocation"
+                label="Monthly set-aside"
+                placeholder="1,000.00"
+                value={monthlyAllocation}
+                onChange={setMonthlyAllocation}
               />
             </div>
           </div>
+        </section>
 
-          {/* Section 2: Initial Savings Goal (Optional) */}
-          <div className="border-t border-gray-100 pt-4">
-            <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide mb-1">
-              First Savings Goal <span className="text-gray-400 font-normal">(Optional)</span>
-            </label>
-            <p className="text-[11px] text-gray-500 mb-3">
-              Set a target for emergency fund, gadgets, or travel.
-            </p>
+        {error && (
+          <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-medium text-rose-700">
+            {error}
+          </p>
+        )}
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                  Goal Name
-                </label>
-                <input
-                  className="w-full border border-gray-300 px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:border-emerald-600 rounded-lg transition"
-                  type="text"
-                  placeholder="e.g. Emergency Fund"
-                  value={goalName}
-                  onChange={(e) => setGoalName(e.target.value)}
-                />
-              </div>
+        <button type="submit" disabled={loading} className={onboardingPrimaryButtonClass}>
+          {loading ? "Completing setup..." : "Finish and open dashboard"}
+          {!loading && <ArrowRight size={17} />}
+        </button>
+      </form>
+    </OnboardingShell>
+  );
+}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                    Target Amount
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-600">₱</span>
-                    <input
-                      className="w-full border border-gray-300 pl-7 pr-3 py-2.5 text-xs font-semibold text-gray-900 focus:outline-none focus:border-emerald-600 rounded-lg transition"
-                      type="number"
-                      placeholder="10,000"
-                      value={targetAmount}
-                      onChange={(e) => setTargetAmount(e.target.value)}
-                      min="0"
-                      step="any"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                    Monthly Set-Aside
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-600">₱</span>
-                    <input
-                      className="w-full border border-gray-300 pl-7 pr-3 py-2.5 text-xs font-semibold text-gray-900 focus:outline-none focus:border-emerald-600 rounded-lg transition"
-                      type="number"
-                      placeholder="1,000"
-                      value={monthlyAllocation}
-                      onChange={(e) => setMonthlyAllocation(e.target.value)}
-                      min="0"
-                      step="any"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-center text-xs text-red-600 font-medium">
-              {error}
-            </p>
-          )}
-
-          <div className="pt-2 text-center">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-full bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white font-semibold py-3.5 text-sm shadow-md transition-all duration-200 cursor-pointer block"
-            >
-              {loading ? "Completing Setup..." : "Finish & Launch Dashboard 🚀"}
-            </button>
-          </div>
-        </form>
+function CurrencyField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="text-xs font-semibold text-slate-700">{label}</label>
+      <div className="relative mt-2">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-emerald-800">₱</span>
+        <input
+          id={id}
+          className={`${onboardingInputClass} pl-8`}
+          type="number"
+          inputMode="decimal"
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          min="0"
+          step="0.01"
+        />
       </div>
     </div>
   );

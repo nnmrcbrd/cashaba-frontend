@@ -10,7 +10,8 @@ const PUBLIC_ROUTES = new Set([
   "/login",
   "/signup",
   "/forgot-password",
-  "/change-password",
+  "/reset-password",
+  "/auth/google/callback",
 ]);
 
 export function RouteGuard({ children }: { children: React.ReactNode }) {

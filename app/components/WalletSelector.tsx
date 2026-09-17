@@ -1,78 +1,52 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import apiClient from "@/lib/apiClient";
-
-interface Wallet {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-}
+import { walletService } from "@/services/walletService";
+import type { Wallet } from "@/app/types";
 
 interface WalletSelectorProps {
   value?: string | null;
   onChange: (walletId: string | null) => void;
+  label?: string;
+  required?: boolean;
+  excludeId?: string | null;
 }
 
-export default function WalletSelector({ value, onChange }: WalletSelectorProps) {
+export default function WalletSelector({ value, onChange, label = "Account / payment source", required = true, excludeId }: WalletSelectorProps) {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchWallets() {
-      try {
-        const res = await apiClient.get("/wallets");
-        setWallets(res.data || []);
-      } catch (err) {
-        console.warn("Wallets fetch failed:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchWallets();
+    walletService
+      .getWallets()
+      .then(setWallets)
+      .catch(() => setWallets([]))
+      .finally(() => setLoading(false));
   }, []);
-
-  if (loading) {
-    return <div className="h-9 bg-gray-100 rounded-lg animate-pulse w-full" />;
-  }
 
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-700 mb-1">
-        Wallet / Payment Source
-      </label>
-      <div className="flex flex-wrap gap-2">
-        {/* No wallet option */}
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition
-            ${!value
-              ? "border-gray-400 bg-gray-100 text-gray-800"
-              : "border-gray-200 text-gray-500 hover:border-gray-300"
-            }`}
+      <label className="mb-1 block font-semibold text-gray-700">{label}</label>
+      {loading ? (
+        <div className="h-10 animate-pulse rounded-xl bg-gray-100" />
+      ) : (
+        <select
+          value={value || ""}
+          onChange={(event) => onChange(event.target.value || null)}
+          required={required}
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
-          <span>🔘</span> Unspecified
-        </button>
-
-        {wallets.map((w) => (
-          <button
-            key={w.id}
-            type="button"
-            onClick={() => onChange(w.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition
-              ${value === w.id
-                ? "border-2 text-white font-bold"
-                : "border-gray-200 text-gray-700 hover:border-gray-300 bg-white"
-              }`}
-            style={value === w.id ? { borderColor: w.color, backgroundColor: w.color } : {}}
-          >
-            <span>{w.icon}</span>
-            {w.name}
-          </button>
-        ))}
-      </div>
+          <option value="">Select an account</option>
+          {wallets.filter((wallet) => wallet.id !== excludeId).map((wallet) => (
+            <option key={wallet.id} value={wallet.id}>
+              {wallet.name}{wallet.institution ? ` - ${wallet.institution}` : ""}
+            </option>
+          ))}
+        </select>
+      )}
+      {!loading && wallets.length === 0 && (
+        <p className="mt-1 text-[10px] text-gray-400">Create an account from Wallet & Accounts to assign transactions.</p>
+      )}
     </div>
   );
 }

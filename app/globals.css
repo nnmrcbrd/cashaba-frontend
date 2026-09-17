@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--app-font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -50,6 +50,13 @@
 }
 
 :root {
+  --app-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --app-canvas: #f7f9f8;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8fafc;
+  --app-border: #e2e8f0;
+  --app-text: #0f172a;
+  --app-muted: #64748b;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -84,7 +91,15 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
+.dark,
+[data-app-theme="dark"],
+[data-app-theme="amoled"] {
+  --app-canvas: #0f172a;
+  --app-surface: #1e293b;
+  --app-surface-muted: #172033;
+  --app-border: #334155;
+  --app-text: #f8fafc;
+  --app-muted: #94a3b8;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -124,14 +139,75 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--app-font-sans);
   }
   html {
     @apply font-sans;
   }
 }
 
+@layer components {
+  .app-main {
+    height: 100dvh;
+    min-width: 0;
+    flex: 1;
+    overflow-y: auto;
+    background: var(--app-canvas);
+    color: var(--app-text);
+    padding: 1.5rem;
+  }
+
+  .app-main > * {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 88rem;
+  }
+
+  .app-main h1 {
+    color: var(--app-text);
+    font-size: clamp(1.75rem, 2vw, 2.125rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+  }
+
+  .app-main h2,
+  .app-main h3 {
+    letter-spacing: -0.02em;
+  }
+
+  .app-page-header--sticky {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: color-mix(in srgb, var(--app-canvas) 92%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .themed-sticky-header {
+    background: color-mix(in srgb, var(--app-surface) 94%, transparent);
+  }
+
+  .app-main :is(.rounded-2xl, .rounded-3xl).border.bg-white {
+    border-color: #e2e8f0;
+    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.045);
+  }
+
+  @media (min-width: 640px) {
+    .app-main {
+      padding: 2rem;
+    }
+  }
+}
+
 /* ─── Amoled Theme (pure black for OLED screens) ──────────────────── */
 [data-theme="amoled"] {
+  --app-canvas: #000000;
+  --app-surface: #080808;
+  --app-surface-muted: #0d0d0d;
+  --app-border: #262626;
+  --app-text: #fafafa;
+  --app-muted: #a3a3a3;
   --background: oklch(0 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.06 0 0);
@@ -158,4 +234,194 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Theme bridge for legacy Tailwind utilities used across pages and modals. */
+.dark,
+[data-app-theme="dark"],
+[data-app-theme="amoled"] {
+  color-scheme: dark;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-white, .bg-gray-50, .bg-gray-100, .bg-slate-50, .bg-slate-100):not([data-theme-preview]) {
+  background-color: var(--app-surface) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(
+  [class~="bg-[#f7f9f8]"],
+  [class~="bg-[#f3f6f4]"],
+  [class~="bg-[#f9fbf9]"],
+  [class~="bg-[#f4f7f5]"],
+  [class~="bg-[#f0f4f1]"]
+) {
+  background-color: var(--app-canvas) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(
+  .text-gray-900,
+  .text-gray-800,
+  .text-gray-700,
+  .text-slate-950,
+  .text-slate-900,
+  .text-slate-800,
+  .text-slate-700
+) {
+  color: var(--app-text) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(
+  .text-gray-600,
+  .text-gray-500,
+  .text-gray-400,
+  .text-slate-600,
+  .text-slate-500,
+  .text-slate-400
+) {
+  color: var(--app-muted) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) [class*="border-gray-"],
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) [class*="border-slate-"] {
+  border-color: var(--app-border) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(input, select, textarea) {
+  border-color: var(--app-border) !important;
+  background-color: var(--app-surface-muted) !important;
+  color: var(--app-text) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(input, textarea)::placeholder {
+  color: var(--app-muted) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) .field-label {
+  color: var(--app-text);
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) table :is(th, td) {
+  border-color: var(--app-border) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.rounded-2xl, .rounded-3xl).border.bg-white {
+  border-color: var(--app-border) !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+
+/* Preserve meaning and contrast for status panels in dark themes. */
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(
+  .bg-emerald-50,
+  .bg-emerald-100,
+  .bg-emerald-50\/30,
+  .bg-emerald-50\/40,
+  .bg-emerald-50\/50,
+  .bg-emerald-50\/60
+) {
+  background-color: rgba(16, 185, 129, 0.13) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-amber-50, .bg-amber-50\/50, .bg-amber-100, .bg-yellow-50, .bg-yellow-100) {
+  background-color: rgba(245, 158, 11, 0.13) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-red-50, .bg-red-50\/50, .bg-red-100, .bg-rose-50, .bg-rose-50\/50, .bg-rose-100) {
+  background-color: rgba(244, 63, 94, 0.13) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-blue-50, .bg-blue-50\/50, .bg-blue-100, .bg-violet-50, .bg-violet-50\/50, .bg-violet-100) {
+  background-color: rgba(96, 165, 250, 0.13) !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900) {
+  color: #6ee7b7 !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-yellow-600, .text-yellow-700, .text-yellow-800) {
+  color: #fcd34d !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.text-red-600, .text-red-700, .text-red-800, .text-red-900, .text-rose-600, .text-rose-700, .text-rose-800) {
+  color: #fda4af !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.text-blue-600, .text-blue-700, .text-blue-800, .text-blue-900, .text-violet-600, .text-violet-700, .text-violet-800) {
+  color: #93c5fd !important;
+}
+
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(
+  [class*="border-emerald-"],
+  [class*="border-amber-"],
+  [class*="border-yellow-"],
+  [class*="border-red-"],
+  [class*="border-rose-"],
+  [class*="border-blue-"],
+  [class*="border-violet-"]
+) {
+  border-color: color-mix(in srgb, currentColor 34%, var(--app-border)) !important;
+}
+
+[data-theme-preview="light"] {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+}
+
+[data-theme-preview="dark"] {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+[data-theme-preview="amoled"] {
+  background-color: #030712 !important;
+  border-color: #1f2937 !important;
+}
+
+[data-theme-preview] .bg-gray-300 {
+  background-color: #d1d5db !important;
+}
+
+[data-theme-preview] .bg-gray-600 {
+  background-color: #4b5563 !important;
+}
+
+.filter-input,
+.field-input,
+.modal-input {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  padding: 0.625rem 0.75rem;
+  color: #374151;
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.filter-input:focus,
+.field-input:focus,
+.modal-input:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.14);
+}
+
+.field-label {
+  display: block;
+  margin: 0.75rem 0 0.25rem;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.modal-input {
+  display: block;
+  margin-top: 0.375rem;
+}
+
+/* Keep the sidebar scrollable without showing the native scrollbar track. */
+.sidebar-nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
 }

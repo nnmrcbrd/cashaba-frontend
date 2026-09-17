@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import apiClient from "@/lib/apiClient";
+import axios from "axios";
+import WalletSelector from "@/app/components/WalletSelector";
 
 interface BankImportModalProps {
   onClose: () => void;
@@ -19,25 +21,39 @@ const BANKS = [
 export default function BankImportModal({ onClose, onImportSuccess }: BankImportModalProps) {
   const [bankType, setBankType] = useState("generic");
   const [file, setFile] = useState<File | null>(null);
+  const [walletId, setWalletId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handleImport() {
-    if (!file) return;
+    if (!file || !walletId) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("CSV file must be 2 MB or smaller.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
     try {
-      const buffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string"
+          ? resolve(reader.result)
+          : reject(new Error("Unable to read file"));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const base64 = dataUrl.split(",", 2)[1];
 
-      const res = await apiClient.post("/transactions/import-csv", { csvBase64: base64, bankType });
+      const res = await apiClient.post("/transactions/import-csv", { csvBase64: base64, bankType, walletId });
       setResult({ imported: res.data.imported, skipped: res.data.skipped });
       onImportSuccess(res.data.imported);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Import failed. Please check your CSV format.");
+    } catch (err) {
+      setError(axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message || "Import failed. Please check your CSV format."
+        : "Import failed. Please check your CSV format.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +83,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
             <h3 className="text-sm font-bold text-gray-900 mb-1">Import Complete!</h3>
             <p className="text-xs text-gray-600">
               <strong className="text-emerald-700">{result.imported} transactions</strong> imported
-              {result.skipped > 0 && `, ${result.skipped} skipped (duplicates or errors)`}.
+              {result.skipped > 0 && `, ${result.skipped} skipped because they could not be saved`}.
             </p>
             <button
               onClick={onClose}
@@ -100,6 +116,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
             </div>
 
             {/* File Upload */}
+            <WalletSelector value={walletId} onChange={setWalletId} label="Account for imported entries" />
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-2">CSV File</label>
               <div
@@ -145,7 +162,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
               </button>
               <button
                 onClick={handleImport}
-                disabled={!file || loading}
+                disabled={!file || !walletId || loading}
                 className="flex-1 bg-[#186849] hover:bg-[#13543b] disabled:opacity-40 text-white py-2.5 rounded-xl text-xs font-bold transition"
               >
                 {loading ? "Importing..." : "🏦 Import Transactions"}

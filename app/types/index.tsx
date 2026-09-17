@@ -8,12 +8,18 @@ export interface User {
   role: ("Student" | "Working" | "Freelance" | "Married")[];
   avatar?: string;
   memberSince: string;
-  accountType: "Standard User" | "Premium";
   accountRole?: "USER" | "ADMIN" | string;
   status: "Active" | "Inactive";
+  onboardingComplete?: boolean;
+  onboardingStep?: number;
+  customRole?: string;
+  region?: string;
+  accountStatus?: "ACTIVE" | "SUSPENDED";
+  lastActiveAt?: string;
+  authMethod?: "LOCAL" | "GOOGLE";
 }
 
-export type TransactionType = "income" | "expense";
+export type TransactionType = "income" | "expense" | "transfer" | "adjustment" | "savings_contribution" | "savings_withdrawal" | "bill_payment" | "debt_payment" | "loan_collection";
 
 export interface Transaction {
   id: string;
@@ -22,7 +28,32 @@ export interface Transaction {
   category: string;
   type: TransactionType;
   amount: number;
+  walletId?: string | null;
+  wallet?: Pick<Wallet, "id" | "name" | "color"> | null;
+  destinationWalletId?: string | null;
+  destinationWallet?: Pick<Wallet, "id" | "name" | "color"> | null;
+  savingsGoalId?: string | null;
+  fixedExpenseId?: string | null;
 }
+
+export type AccountType = "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "INVESTMENT" | "OTHER";
+export type AccountKind = "ASSET" | "LIABILITY";
+
+export interface Wallet {
+  id: string;
+  name: string;
+  institution?: string | null;
+  accountType: AccountType;
+  kind: AccountKind;
+  openingBalance: number;
+  balance: number;
+  icon: "wallet" | "bank" | "phone" | "card" | "chart" | "other";
+  color: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type WalletInput = Omit<Wallet, "id" | "balance" | "createdAt">;
 
 export type IncomeCategory = "Salary" | "Allowance" | "Business" | "Freelance" | "Others";
 export type ExpenseCategory = "Food" | "Transport" | "Bills" | "Shopping" | "Entertainment" | "Health" | "Others";

@@ -8,6 +8,7 @@ export const ROUTES = {
   LOGIN: "/login",
   SIGNUP: "/signup",
   FORGOT_PASSWORD: "/forgot-password",
+  RESET_PASSWORD: "/reset-password",
   CHANGE_PASSWORD: "/change-password",
   ONBOARDING_ROLE: "/onboarding/role",
   ONBOARDING_INCOME: "/onboarding/income",
@@ -15,8 +16,9 @@ export const ROUTES = {
   ONBOARDING_BUDGET: "/onboarding/budget",
   DASHBOARD: "/dashboard",
   TRANSACTIONS: "/transactions",
+  ACCOUNTS: "/accounts",
   BUDGET: "/budget",
-  LOANS: "/loans",
+  LOANS: "/obligations",
   ANALYTICS: "/analytics",
   AI_ASSISTANT: "/ai-assistant",
   SETTINGS: "/settings",
@@ -24,16 +26,56 @@ export const ROUTES = {
 };
 
 export const CATEGORIES = {
-  EXPENSE: ["Food & Dining", "Transport", "Utilities", "Housing", "Health", "Entertainment", "Education", "Shopping", "Savings", "Debt Payment", "Others"],
+  EXPENSE: [
+    "Food & Dining",
+    "Transport",
+    "Utilities",
+    "Housing",
+    "Health",
+    "Entertainment",
+    "Education",
+    "Shopping",
+    "Savings",
+    "Debt Payment",
+    "Others",
+  ],
   INCOME: ["Salary", "Freelance", "Business", "Gift", "Other"],
 };
 
 export const NAV_ITEMS = [
-  { label: "Dashboard", href: ROUTES.DASHBOARD, icon: "🏠" },
-  { label: "Transactions", href: ROUTES.TRANSACTIONS, icon: "💳" },
-  { label: "Budget & Goals", href: ROUTES.BUDGET, icon: "🎯" },
-  { label: "Debts & Loans", href: ROUTES.LOANS, icon: "🤝" },
-  { label: "AI Assistant", href: ROUTES.AI_ASSISTANT, icon: "🤖" },
-  { label: "Analytics", href: ROUTES.ANALYTICS, icon: "📊" },
-  { label: "Settings", href: ROUTES.SETTINGS, icon: "⚙️" },
+  { label: "Dashboard", href: ROUTES.DASHBOARD },
+  { label: "Wallet & Accounts", href: ROUTES.ACCOUNTS },
+  { label: "Transaction History", href: ROUTES.TRANSACTIONS },
+  { label: "Budget & Goals", href: ROUTES.BUDGET },
+  { label: "Debts & Loans", href: ROUTES.LOANS },
+  { label: "AI Assistant", href: ROUTES.AI_ASSISTANT },
+  { label: "Analytics", href: ROUTES.ANALYTICS },
+  { label: "Settings", href: ROUTES.SETTINGS },
 ];
+
+export const NAV_GROUPS = [
+  {
+    id: "money",
+    label: "Money",
+    items: [
+      { label: "Wallet & Accounts", href: ROUTES.ACCOUNTS },
+      { label: "Transaction History", href: ROUTES.TRANSACTIONS },
+    ],
+  },
+  {
+    id: "planning",
+    label: "Planning",
+    items: [
+      { label: "Budget & Goals", href: ROUTES.BUDGET },
+      { label: "Obligations & Debts", href: ROUTES.LOANS },
+    ],
+  },
+  {
+    id: "intelligence",
+    label: "Intelligence",
+    items: [
+      { label: "Analytics", href: ROUTES.ANALYTICS },
+      { label: "AI Assistant", href: ROUTES.AI_ASSISTANT },
+    ],
+  },
+] as const;

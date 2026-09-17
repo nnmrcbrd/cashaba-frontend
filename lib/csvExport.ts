@@ -9,7 +9,7 @@ interface ExportTransaction {
   date?: string;
   description: string;
   category: string;
-  type: "income" | "expense" | "INCOME" | "EXPENSE";
+  type: string;
   amount: number;
 }
 
@@ -21,7 +21,11 @@ export function exportTransactionsCSV(
 
   const rows = transactions.map((t) => {
     const date = t.date ? t.date.split("T")[0] : new Date().toISOString().split("T")[0];
-    const type = (t.type || "").toUpperCase() === "INCOME" ? "Income" : "Expense";
+    const type = (t.type || "")
+      .toLowerCase()
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
     const amount = Number(t.amount).toFixed(2);
     // Escape commas and quotes in text fields
     const escape = (val: string) =>
