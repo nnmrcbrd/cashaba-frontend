@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ROUTES } from "@/constants";
 import { incomeSetupService } from "@/services/incomeSetupService";
+import type { FixedExpense } from "@/services/incomeSetupService";
 import OnboardingShell, {
   onboardingInputClass,
   onboardingPrimaryButtonClass,
@@ -29,6 +30,7 @@ interface ExpenseItem {
   amount: number;
   dueDate: string;
   frequency: "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
+  saved?: boolean;
 }
 
 const PRESETS: Array<{ name: string; icon: LucideIcon }> = [
@@ -61,6 +63,22 @@ export default function OnboardingRecurringPage() {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  useEffect(() => {
+    let active = true;
+    incomeSetupService.getFixedExpenses().then((expenses) => {
+      if (!active) return;
+      setItems(expenses.filter((item) => item.frequency !== "ONE_TIME").map((item: FixedExpense) => ({
+        id: item.id,
+        name: item.name,
+        amount: item.amount,
+        dueDate: item.dueDate?.slice(0, 10) || "",
+        frequency: item.frequency as ExpenseItem["frequency"],
+        saved: true,
+      })));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
   function handleAddExpense(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const numericAmount = Number.parseFloat(amount);
@@ -87,8 +105,18 @@ export default function OnboardingRecurringPage() {
     setError("");
     setLoading(true);
     try {
-      for (const item of items) {
-        await incomeSetupService.addFixedExpense(item.name, item.amount, item.dueDate || undefined, { frequency: item.frequency });
+      for (const item of items.filter((entry) => !entry.saved)) {
+        const result = await incomeSetupService.addFixedExpense(item.name, item.amount, item.dueDate || undefined, { frequency: item.frequency });
+        setItems((current) => current.map((entry) => entry.id === item.id
+          ? {
+              id: result.expense.id,
+              name: result.expense.name,
+              amount: result.expense.amount,
+              dueDate: result.expense.dueDate?.slice(0, 10) || "",
+              frequency: result.expense.frequency as ExpenseItem["frequency"],
+              saved: true,
+            }
+          : entry));
       }
       router.push(ROUTES.ONBOARDING_BUDGET);
     } catch (reason) {
@@ -106,7 +134,16 @@ export default function OnboardingRecurringPage() {
     currentPage * ITEMS_PER_PAGE,
   );
 
-  function removeExpense(id: string) {
+  async function removeExpense(id: string) {
+    const item = items.find((entry) => entry.id === id);
+    if (item?.saved) {
+      try {
+        await incomeSetupService.deleteFixedExpense(id);
+      } catch {
+        setError(`Unable to remove ${item.name}. It may have a payment history that needs to be kept.`);
+        return;
+      }
+    }
     const remainingItems = items.filter((item) => item.id !== id);
     const lastAvailablePage = Math.max(1, Math.ceil(remainingItems.length / ITEMS_PER_PAGE));
     setItems(remainingItems);
@@ -120,6 +157,7 @@ export default function OnboardingRecurringPage() {
       description="Record mandatory bills that reduce the amount you can safely spend. Add only expenses you expect to pay regularly."
       asideTitle="Separate obligations from everyday spending."
       asideDescription="Rent, utilities, and recurring bills are reserved before Casha-Ba calculates what remains available."
+      onBack={() => router.push(ROUTES.ONBOARDING_INCOME)}
       onSkip={() => router.push(ROUTES.ONBOARDING_BUDGET)}
     >
       <div>
@@ -205,7 +243,7 @@ export default function OnboardingRecurringPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => removeExpense(item.id)}
+                  onClick={() => void removeExpense(item.id)}
                   className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                   aria-label={`Remove ${item.name}`}
                 >

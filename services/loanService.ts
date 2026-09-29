@@ -39,6 +39,8 @@ export const loanService = {
     deadline: string;
     repaymentAmount: number;
     repaymentFrequency: "WEEKLY" | "MONTHLY" | "ONE_TIME";
+    walletId?: string | null;
+    principalAlreadyIncluded?: boolean;
   }): Promise<Loan> {
     const res = await apiClient.post("/loans", data);
     return res.data;

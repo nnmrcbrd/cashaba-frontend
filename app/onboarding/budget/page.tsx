@@ -18,6 +18,7 @@ export default function OnboardingBudgetPage() {
   const [goalName, setGoalName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [monthlyAllocation, setMonthlyAllocation] = useState("");
+  const [existingGoalId, setExistingGoalId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [review, setReview] = useState({ income: 0, obligations: 0, safeToSpend: 0 });
@@ -25,7 +26,25 @@ export default function OnboardingBudgetPage() {
   const suggestedGoal = user?.role?.includes("Student") ? "Tuition or school expenses" : user?.role?.includes("Married") ? "Household emergency fund" : user?.role?.includes("Freelance") ? "Income buffer" : "Emergency fund";
 
   useEffect(() => {
-    Promise.all([incomeSetupService.getIncomeSetup(), incomeSetupService.getFixedExpenses()]).then(([setup, obligations]) => setReview({ income: setup.setup?.totalIncome || 0, obligations: obligations.reduce((sum, item) => sum + item.amount, 0), safeToSpend: setup.safeToSpend })).catch(() => undefined);
+    let active = true;
+    Promise.all([
+      incomeSetupService.getIncomeSetup(),
+      incomeSetupService.getFixedExpenses(),
+      incomeSetupService.getSavingsGoals(),
+      apiClient.get("/budget"),
+    ]).then(([setup, obligations, goals, budget]) => {
+      if (!active) return;
+      setReview({ income: setup.setup?.totalIncome || 0, obligations: obligations.reduce((sum, item) => sum + item.amount, 0), safeToSpend: setup.safeToSpend });
+      if (budget.data.configured) setBudgetLimit(String(budget.data.targetAmount));
+      const goal = goals[0];
+      if (goal) {
+        setExistingGoalId(goal.id);
+        setGoalName(goal.name);
+        setTargetAmount(String(goal.targetAmount));
+        setMonthlyAllocation(goal.monthlyAllocation ? String(goal.monthlyAllocation) : "");
+      }
+    }).catch(() => setError("Unable to load your existing plan. You can retry or continue without changing it."));
+    return () => { active = false; };
   }, []);
 
   async function handleFinish(event: React.FormEvent<HTMLFormElement>) {
@@ -40,11 +59,16 @@ export default function OnboardingBudgetPage() {
       }
 
       if (goalName.trim() && targetAmount && Number.parseFloat(targetAmount) > 0) {
-        await incomeSetupService.addSavingsGoal(
-          goalName.trim(),
-          Number.parseFloat(targetAmount),
-          monthlyAllocation ? Number.parseFloat(monthlyAllocation) : 0,
-        );
+        const goal = {
+          name: goalName.trim(),
+          targetAmount: Number.parseFloat(targetAmount),
+          monthlyAllocation: monthlyAllocation ? Number.parseFloat(monthlyAllocation) : 0,
+        };
+        if (existingGoalId) await incomeSetupService.updateSavingsGoal(existingGoalId, goal);
+        else {
+          const created = await incomeSetupService.addSavingsGoal(goal.name, goal.targetAmount, goal.monthlyAllocation);
+          setExistingGoalId(created.goal.id);
+        }
       }
 
       await apiClient.patch("/users/me/onboarding", { step: 5, complete: true });
@@ -59,9 +83,18 @@ export default function OnboardingBudgetPage() {
   }
 
   async function finishWithoutPlan() {
-    await apiClient.patch("/users/me/onboarding", { step: 5, complete: true });
-    await refreshUser();
-    router.push(ROUTES.DASHBOARD);
+    setError("");
+    setLoading(true);
+    try {
+      await apiClient.patch("/users/me/onboarding", { step: 5, complete: true });
+      await refreshUser();
+      router.push(ROUTES.DASHBOARD);
+    } catch (reason) {
+      console.error("Failed to complete onboarding:", reason);
+      setError("Unable to complete onboarding. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -71,6 +104,7 @@ export default function OnboardingBudgetPage() {
       description="Create a spending ceiling and, if useful, one savings target. Both values can be changed after onboarding."
       asideTitle="Turn your baseline into a practical plan."
       asideDescription="A budget sets a spending boundary. A savings allocation reserves part of your income before Safe-to-Spend is calculated."
+      onBack={() => router.push(ROUTES.ONBOARDING_RECURRING)}
       onSkip={() => void finishWithoutPlan()}
     >
       <form onSubmit={handleFinish} className="space-y-5">

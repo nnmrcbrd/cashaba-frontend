@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ShieldCheck, Sparkles, WalletCards } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
 
 interface OnboardingShellProps {
   step: 1 | 2 | 3 | 4;
@@ -11,6 +11,7 @@ interface OnboardingShellProps {
   asideDescription: string;
   children: ReactNode;
   onSkip?: () => void;
+  onBack?: () => void;
 }
 
 export const onboardingInputClass =
@@ -27,6 +28,7 @@ export default function OnboardingShell({
   asideDescription,
   children,
   onSkip,
+  onBack,
 }: OnboardingShellProps) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f7f9f8] text-slate-950">
@@ -81,12 +83,18 @@ export default function OnboardingShell({
           </aside>
 
           <div className="p-6 sm:p-9 lg:p-11">
-            <div className="mb-8 flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950">{title}</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
-              </div>
-              {onSkip && (
+            {(onBack || onSkip) && (
+              <div className="mb-6 flex min-h-10 items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                {onBack ? (
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                  >
+                    <ArrowLeft size={16} aria-hidden="true" /> Back
+                  </button>
+                ) : <span />}
+                {onSkip && (
                 <button
                   type="button"
                   onClick={onSkip}
@@ -94,7 +102,12 @@ export default function OnboardingShell({
                 >
                   Skip for now
                 </button>
-              )}
+                )}
+              </div>
+            )}
+            <div className="mb-8">
+              <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950">{title}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
             </div>
             {children}
           </div>

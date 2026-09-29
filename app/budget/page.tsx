@@ -15,7 +15,7 @@ interface CategoryBreakdown {
   spent: number;
   remaining: number;
   percentage: number;
-  status: "NORMAL" | "WARNING_80" | "EXCEEDED_100";
+  status: "UNSET" | "NORMAL" | "WARNING_80" | "EXCEEDED_100";
 }
 
 interface BudgetResponse {
@@ -137,7 +137,7 @@ export default function BudgetPage() {
       <Sidebar />
       <main className="app-main">
         {/* Header */}
-        <div className="app-page-header app-page-header--sticky mb-6 flex flex-col gap-4 border-b border-gray-200/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="app-page-header mb-6 flex flex-col gap-4 border-b border-gray-200/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1>Budget & Goals</h1>
             <p className="text-xs text-gray-500 mt-1">Set spending limits and track mandatory savings commitments.</p>
@@ -236,7 +236,7 @@ export default function BudgetPage() {
                             ? "bg-amber-100 text-amber-800"
                             : "bg-emerald-100 text-emerald-800"
                         }`}>
-                        {cat.percentage}%
+                        {cat.status === "UNSET" ? "No limit set" : `${cat.percentage}%`}
                       </span>
                     </div>
 
@@ -264,10 +264,10 @@ export default function BudgetPage() {
             {/* Target Budget Form */}
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm max-w-md">
               <h3 className="mb-2 text-xs font-bold text-gray-800">Update Target Monthly Budget</h3>
-              <form onSubmit={handleUpdateBudget} className="flex gap-3">
+              <form onSubmit={handleUpdateBudget} className="flex min-w-0 flex-col gap-3 sm:flex-row">
                 <input
                   type="number"
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="min-w-0 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="New monthly target (₱)"
                   value={newTarget}
                   onChange={(e) => setNewTarget(e.target.value)}

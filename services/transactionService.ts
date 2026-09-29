@@ -15,6 +15,7 @@ export const transactionService = {
       wallet: tx.wallet,
       destinationWalletId: tx.destinationWalletId,
       destinationWallet: tx.destinationWallet,
+      loanId: tx.loanId,
       savingsGoalId: tx.savingsGoalId,
       fixedExpenseId: tx.fixedExpenseId,
     }));
@@ -44,6 +45,7 @@ export const transactionService = {
       wallet: newTx.wallet,
       destinationWalletId: newTx.destinationWalletId,
       destinationWallet: newTx.destinationWallet,
+      loanId: newTx.loanId,
       savingsGoalId: newTx.savingsGoalId,
       fixedExpenseId: newTx.fixedExpenseId,
     };
@@ -78,6 +80,7 @@ interface BackendTransaction {
   } | null;
   destinationWalletId?: string | null;
   destinationWallet?: { id: string; name: string; color: string } | null;
+  loanId?: string | null;
   savingsGoalId?: string | null;
   fixedExpenseId?: string | null;
 }

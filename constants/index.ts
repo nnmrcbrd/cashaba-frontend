@@ -22,6 +22,7 @@ export const ROUTES = {
   ANALYTICS: "/analytics",
   AI_ASSISTANT: "/ai-assistant",
   SETTINGS: "/settings",
+  SUBSCRIPTION: "/subscription",
   ADMIN_MANAGE_USERS: "/admin/manage-users",
 };
 
@@ -49,7 +50,7 @@ export const NAV_ITEMS = [
   { label: "Budget & Goals", href: ROUTES.BUDGET },
   { label: "Debts & Loans", href: ROUTES.LOANS },
   { label: "AI Assistant", href: ROUTES.AI_ASSISTANT },
-  { label: "Analytics", href: ROUTES.ANALYTICS },
+  { label: "Financial Review", href: ROUTES.ANALYTICS },
   { label: "Settings", href: ROUTES.SETTINGS },
 ];
 
@@ -74,7 +75,7 @@ export const NAV_GROUPS = [
     id: "intelligence",
     label: "Intelligence",
     items: [
-      { label: "Analytics", href: ROUTES.ANALYTICS },
+      { label: "Financial Review", href: ROUTES.ANALYTICS },
       { label: "AI Assistant", href: ROUTES.AI_ASSISTANT },
     ],
   },

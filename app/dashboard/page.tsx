@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { Calculator, X } from "lucide-react";
 import Sidebar from "../components/ui/sidebar";
 import { useAuth } from "@/context/Authcontext";
 import { Transaction } from "../types";
@@ -19,12 +19,14 @@ import apiClient from "@/lib/apiClient";
 import { walletService } from "@/services/walletService";
 import type { Wallet } from "../types";
 import { ROUTES } from "@/constants";
+import { calculateNetWorth } from "@/lib/netWorth";
 
 // Financial insight components
 import InsightCards from "../components/InsightCards";
 import HealthScoreWidget from "../components/HealthScoreWidget";
 import SpendingAlert from "../components/SpendingAlert";
 import RecurringDetectionBanner from "../components/RecurringDetectionBanner";
+import SafeToSpendWhatIf from "../components/SafeToSpendWhatIf";
 
 interface BudgetData {
   configured?: boolean;
@@ -56,6 +58,7 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [showSafeToSpendBreakdown, setShowSafeToSpendBreakdown] = useState(false);
+  const [showWhatIfCalculator, setShowWhatIfCalculator] = useState(false);
   const [budgetAlertsEnabled] = useState(() => typeof window === "undefined" || localStorage.getItem("casha_budget_alerts") !== "false");
   const [insightCardsEnabled] = useState(() => typeof window === "undefined" || localStorage.getItem("casha_weekly_summary") !== "false");
 
@@ -102,26 +105,34 @@ export default function DashboardPage() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [showSafeToSpendBreakdown]);
 
-  const userIncome = safeToSpendBreakdown?.totalIncome || incomeSetup?.totalIncome ||
-    transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0) || 0;
+  useEffect(() => {
+    if (!showWhatIfCalculator) return;
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setShowWhatIfCalculator(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showWhatIfCalculator]);
+
+  const userIncome = safeToSpendBreakdown?.totalIncome ?? 0;
 
   const totalSpent = safeToSpendBreakdown?.totalExpenses ?? transactions
     .filter((t) => ["expense", "bill_payment", "debt_payment"].includes(t.type))
     .reduce((sum, t) => sum + t.amount, 0);
-  const walletAssets = wallets.filter((wallet) => wallet.kind === "ASSET").reduce((sum, wallet) => sum + wallet.balance, 0);
-  const walletLiabilities = wallets.filter((wallet) => wallet.kind === "LIABILITY").reduce((sum, wallet) => sum + wallet.balance, 0);
+  const balanceSummary = calculateNetWorth(wallets, loanSummary);
 
   const incomePeriod = incomeSetup?.incomePeriod || "monthly";
-  const weeklyAllowance = incomePeriod === "weekly" ? userIncome : (userIncome / 4);
+  const plannedWeeklyIncome = incomePeriod === "weekly" ? (incomeSetup?.totalIncome ?? 0) : (incomeSetup?.totalIncome ?? 0) / 4.33;
 
   const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0);
   const totalSavingsAllocations = savingsGoals
     .filter((g) => !g.isCompleted)
     .reduce((sum, g) => sum + (g.monthlyAllocation || 0), 0);
-  const totalFixedBills = fixedExpenses.reduce((sum, fe) => sum + fe.amount, 0);
-  const totalObligations = totalFixedBills + totalSavingsAllocations;
-  const periodExpenses = safeToSpendBreakdown?.totalExpenses ?? totalSpent;
-  const loanRepaymentsDue = safeToSpendBreakdown?.totalLoanRepayments ?? loanSummary.scheduledDue ?? 0;
+  const totalFixedReserve = safeToSpendBreakdown?.totalFixed ?? 0;
+  const totalSavingsReserve = safeToSpendBreakdown?.totalSavings ?? 0;
+  const loanRepaymentsDue = safeToSpendBreakdown?.totalLoanRepayments ?? 0;
+  const totalObligations = totalFixedReserve + totalSavingsReserve + loanRepaymentsDue;
+  const periodExpenses = safeToSpendBreakdown?.totalExpenses ?? 0;
 
   const recentTransactions = transactions.length > 0 ? transactions.slice(0, 5) : [];
 
@@ -148,6 +159,15 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-[#f7f9f8]">
       <Sidebar />
       <main className="app-main">
+        {/* Header Bar */}
+        <div className="app-page-header flex items-center justify-between mb-4 pb-4 border-b border-gray-200/60">
+          <div>
+            <h1>Dashboard</h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Welcome back, <span className="font-bold text-gray-800">{user?.name ? user.name.split(" ")[0] : "User"}</span>! Your {roleLabel.toLowerCase()} view prioritizes cash available after upcoming commitments.
+            </p>
+          </div>
+        </div>
         {/* Smart Spending Alert Banner */}
         <SpendingAlert
           status={!budgetAlertsEnabled || budgetData?.overallStatus === "NOT_CONFIGURED" ? null : budgetData?.overallStatus}
@@ -156,15 +176,6 @@ export default function DashboardPage() {
         />
         {/* Recurring Expense Detection */}
         <RecurringDetectionBanner />
-        {/* Header Bar */}
-        <div className="app-page-header flex items-center justify-between mb-6 pb-4 border-b border-gray-200/60">
-          <div>
-            <h1>Dashboard</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Welcome back, <span className="font-bold text-gray-800">{user?.name ? user.name.split(" ")[0] : "User"}</span>! Your {roleLabel.toLowerCase()} view prioritizes cash available after upcoming commitments.
-            </p>
-          </div>
-        </div>
 
         {/* PRIMARY 3-COLUMN HERO METRICS ROW */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
@@ -172,14 +183,15 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => setShowSafeToSpendBreakdown(true)}
+            disabled={!safeToSpendBreakdown}
             className="bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 p-6 rounded-2xl text-white shadow-md relative overflow-hidden flex flex-col justify-between text-left transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-            aria-label="View Safe-to-Spend breakdown"
+             aria-label={safeToSpendBreakdown ? "View Safe-to-Spend breakdown" : "Complete income setup to see Safe-to-Spend"}
           >
             <div>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Safe-to-Spend</p>
                 <span className="text-[10px] bg-white/20 text-white px-2.5 py-0.5 rounded-full font-bold">
-                  Real-time
+                  Recorded cash
                 </span>
               </div>
               <p className="text-3xl font-extrabold tracking-tight my-2">
@@ -194,7 +206,7 @@ export default function DashboardPage() {
                   <span className="font-bold whitespace-nowrap">View breakdown →</span>
                 </div>
               ) : (
-                <p className="font-medium">Available balance after reserved obligations & fixed expenses.</p>
+                 <p className="font-medium">Complete income setup to calculate your available amount.</p>
               )}
             </div>
           </button>
@@ -237,7 +249,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-            <div><p className="text-xs font-bold uppercase tracking-wide text-gray-800">Wallet balances</p><p className="mt-3 text-2xl font-extrabold text-emerald-700">₱{walletAssets.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p><p className="mt-1 text-xs text-gray-500">Assets · ₱{walletLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 })} owed</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-wide text-gray-800">Wallet balances</p><p className="mt-3 text-2xl font-extrabold text-emerald-700">₱{balanceSummary.walletAssets.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p><p className="mt-1 text-xs text-gray-500">Cash in accounts · ₱{balanceSummary.totalLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 })} total owed</p></div>
             <Link href={ROUTES.ACCOUNTS} className="mt-4 text-xs font-bold text-emerald-700 hover:underline">Manage wallets →</Link>
           </div>
 
@@ -247,7 +259,7 @@ export default function DashboardPage() {
             
             <div className="space-y-2.5">
               <div className="flex items-center justify-between text-xs pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Total Income</span>
+                <span className="text-gray-500 font-medium">Income received this period</span>
                 <span className="font-bold text-gray-900">₱{userIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               </div>
 
@@ -257,14 +269,14 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium">Weekly Allowance</span>
-                <span className="font-bold text-blue-600">₱{weeklyAllowance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                <span className="text-gray-500 font-medium">Planned weekly income</span>
+                <span className="font-bold text-blue-600">₱{plannedWeeklyIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {showSafeToSpendBreakdown && (
+        {showSafeToSpendBreakdown && safeToSpendBreakdown && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
             role="presentation"
@@ -287,7 +299,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setShowSafeToSpendBreakdown(false)}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/[0.06] dark:hover:text-white"
                   aria-label="Close breakdown"
                 >
                   <X size={18} />
@@ -300,12 +312,12 @@ export default function DashboardPage() {
                   <strong className="text-emerald-700">+ ₱{userIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-3 text-sm">
-                  <span className="font-semibold text-slate-700">Recurring expenses from onboarding</span>
-                  <strong className="text-amber-700">− ₱{totalFixedBills.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                  <span className="font-semibold text-slate-700">Bills still reserved this period</span>
+                  <strong className="text-amber-700">− ₱{totalFixedReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3 text-sm">
-                  <span className="font-semibold text-slate-700">Active savings allocations</span>
-                  <strong className="text-blue-700">− ₱{totalSavingsAllocations.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                  <span className="font-semibold text-slate-700">Savings reserved this period</span>
+                  <strong className="text-blue-700">− ₱{totalSavingsReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3 text-sm">
                   <span className="font-semibold text-slate-700">Loan repayments due</span>
@@ -319,6 +331,18 @@ export default function DashboardPage() {
                   <span className="font-bold">Safe-to-Spend</span>
                   <strong className="text-lg text-emerald-300">₱{safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                 </div>
+                {safeToSpendBreakdown && safeToSpendBreakdown.rawSafeToSpend < 0 && <p className="text-xs font-semibold text-rose-700">Commitments exceed received income by ₱{Math.abs(safeToSpendBreakdown.rawSafeToSpend).toLocaleString("en-US", { minimumFractionDigits: 2 })}; Safe-to-Spend is shown as ₱0.</p>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSafeToSpendBreakdown(false);
+                    setShowWhatIfCalculator(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100"
+                >
+                  <Calculator className="h-4 w-4" aria-hidden="true" />
+                  Try a Safe-to-Spend What-If
+                </button>
               </div>
 
               <div className="mt-6">
@@ -356,6 +380,15 @@ export default function DashboardPage() {
               </p>
             </section>
           </div>
+        )}
+
+        {showWhatIfCalculator && (
+          <SafeToSpendWhatIf
+            currentSafeToSpend={safeToSpendBreakdown?.safeToSpend ?? safeToSpend}
+            rawSafeToSpend={safeToSpendBreakdown?.rawSafeToSpend ?? safeToSpend}
+            periodLabel={incomePeriod === "weekly" ? "week" : "month"}
+            onClose={() => setShowWhatIfCalculator(false)}
+          />
         )}
 
         {/* AI INSIGHT CARDS */}
@@ -401,7 +434,7 @@ export default function DashboardPage() {
             </div>
 
             {/* SAFE-TO-SPEND OBLIGATIONS BREAKDOWN */}
-            <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm" aria-labelledby="obligations-heading">
+            {safeToSpendBreakdown && <section className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm" aria-labelledby="obligations-heading">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-5">
                 <div>
                   <h3 id="obligations-heading" className="text-sm font-bold text-gray-900">Safe-to-Spend Breakdown</h3>
@@ -419,15 +452,15 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
                 <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
-                  <p className="text-[11px] font-semibold text-gray-500">Recurring expenses</p>
-                  <p className="mt-1 text-base font-extrabold text-gray-900">₱{totalFixedBills.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                   <p className="text-[11px] font-semibold text-amber-800">Bills still reserved</p>
+                   <p className="mt-1 text-base font-extrabold text-gray-900">₱{totalFixedReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
                 </div>
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-[11px] font-semibold text-gray-500">Savings allocations</p>
-                  <p className="mt-1 text-base font-extrabold text-gray-900">₱{totalSavingsAllocations.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                   <p className="text-[11px] font-semibold text-emerald-800">Savings reserved</p>
+                   <p className="mt-1 text-base font-extrabold text-gray-900">₱{totalSavingsReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
                 </div>
                 <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
-                  <p className="text-[11px] font-semibold text-gray-500">Spent this {incomePeriod === "weekly" ? "week" : "month"}</p>
+                  <p className="text-[11px] font-semibold text-rose-800">Spent this {incomePeriod === "weekly" ? "week" : "month"}</p>
                   <p className="mt-1 text-base font-extrabold text-gray-900">₱{periodExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
@@ -487,11 +520,11 @@ export default function DashboardPage() {
 
               <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-gray-500">
-                  ₱{userIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })} income − ₱{totalFixedBills.toLocaleString("en-US", { minimumFractionDigits: 2 })} recurring − ₱{totalSavingsAllocations.toLocaleString("en-US", { minimumFractionDigits: 2 })} savings − ₱{loanRepaymentsDue.toLocaleString("en-US", { minimumFractionDigits: 2 })} loan payments − ₱{periodExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })} spending
+                   ₱{userIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })} received income − ₱{totalFixedReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })} bills − ₱{totalSavingsReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })} savings − ₱{loanRepaymentsDue.toLocaleString("en-US", { minimumFractionDigits: 2 })} loan payments − ₱{periodExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })} spending
                 </span>
-                <strong className="text-emerald-700">= ₱{safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })} safe</strong>
+                 <strong className="text-emerald-700">= {safeToSpendBreakdown && safeToSpendBreakdown.rawSafeToSpend < 0 ? `₱${Math.abs(safeToSpendBreakdown.rawSafeToSpend).toLocaleString("en-US", { minimumFractionDigits: 2 })} shortfall; ₱0 safe` : `₱${safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })} safe`}</strong>
               </div>
-            </section>
+            </section>}
 
             {/* RECENT TRANSACTIONS CARD */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -545,7 +578,7 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <Link
                   href={ROUTES.TRANSACTIONS}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-emerald-50 hover:border-emerald-200 transition font-bold text-xs"
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-white/[0.04] dark:hover:border-white/20 transition font-bold text-xs"
                 >
                   <span className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold">💵</span>
                   <span>Add Transaction</span>
@@ -553,7 +586,7 @@ export default function DashboardPage() {
 
                 <Link
                   href={ROUTES.AI_ASSISTANT}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-purple-50 hover:border-purple-200 transition font-bold text-xs"
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-purple-50 hover:border-purple-200 dark:hover:bg-white/[0.04] dark:hover:border-white/20 transition font-bold text-xs"
                 >
                   <span className="h-8 w-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">🤖</span>
                   <span>Ask AI Assistant</span>
@@ -561,7 +594,7 @@ export default function DashboardPage() {
 
                 <Link
                   href={ROUTES.ANALYTICS}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-blue-50 hover:border-blue-200 transition font-bold text-xs"
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-white/[0.04] dark:hover:border-white/20 transition font-bold text-xs"
                 >
                   <span className="h-8 w-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">📊</span>
                   <span>View Analytics</span>
@@ -569,7 +602,7 @@ export default function DashboardPage() {
 
                 <Link
                   href={ROUTES.BUDGET}
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-amber-50 hover:border-amber-200 transition font-bold text-xs"
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-amber-50 hover:border-amber-200 dark:hover:bg-white/[0.04] dark:hover:border-white/20 transition font-bold text-xs"
                 >
                   <span className="h-8 w-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold">🎯</span>
                   <span>Manage Budget & Goals</span>

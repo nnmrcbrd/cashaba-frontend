@@ -12,6 +12,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [developmentHint, setDevelopmentHint] = useState(false);
+  const [developmentResetUrl, setDevelopmentResetUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,6 +23,7 @@ export default function ForgotPasswordPage() {
     try {
       const response = await apiClient.post("/auth/forgot-password", { email });
       setDevelopmentHint(Boolean(response.data.developmentHint));
+      setDevelopmentResetUrl(typeof response.data.developmentResetUrl === "string" ? response.data.developmentResetUrl : "");
       setSubmitted(true);
     } catch (requestError) {
       setError(axios.isAxiosError<{ message?: string }>(requestError)
@@ -49,7 +51,7 @@ export default function ForgotPasswordPage() {
           {developmentHint && (
             <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
               <TerminalSquare className="mt-0.5 shrink-0" size={17} />
-              <p><strong>Development mode:</strong> email delivery is not configured. Open the reset link printed in the backend terminal.</p>
+              <div><p><strong>Development mode:</strong> email delivery is not configured.</p>{developmentResetUrl && <a href={developmentResetUrl} className="mt-2 inline-block font-bold underline">Open password reset</a>}</div>
             </div>
           )}
           <button type="button" onClick={() => setSubmitted(false)} className="h-11 w-full rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">

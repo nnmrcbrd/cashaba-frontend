@@ -10,9 +10,10 @@ interface WalletSelectorProps {
   label?: string;
   required?: boolean;
   excludeId?: string | null;
+  kind?: Wallet["kind"];
 }
 
-export default function WalletSelector({ value, onChange, label = "Account / payment source", required = true, excludeId }: WalletSelectorProps) {
+export default function WalletSelector({ value, onChange, label = "Account / payment source", required = true, excludeId, kind }: WalletSelectorProps) {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +38,7 @@ export default function WalletSelector({ value, onChange, label = "Account / pay
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
           <option value="">Select an account</option>
-          {wallets.filter((wallet) => wallet.id !== excludeId).map((wallet) => (
+          {wallets.filter((wallet) => wallet.id !== excludeId && (!kind || wallet.kind === kind)).map((wallet) => (
             <option key={wallet.id} value={wallet.id}>
               {wallet.name}{wallet.institution ? ` - ${wallet.institution}` : ""}
             </option>

@@ -38,7 +38,7 @@ export default function ObligationsPage() {
   const visibleBills = bills.slice((currentBillPage - 1) * BILLS_PER_PAGE, currentBillPage * BILLS_PER_PAGE);
 
   return <div className="flex min-h-screen bg-[#f7f9f8]"><Sidebar /><main className="app-main">
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4"><div><h1>Obligations & Debts</h1><p className="mt-1 text-xs text-gray-500">One place for bills, subscriptions, installments, borrowed money, and money lent.</p></div><button onClick={() => setModal(tab === "bills" ? "bill" : "debt")} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white">+ Add {tab === "bills" ? "obligation" : "debt"}</button></header>
+    <header className="app-page-header mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4"><div><h1>Obligations & Debts</h1><p className="mt-1 text-xs text-gray-500">One place for bills, subscriptions, installments, borrowed money, and money lent.</p></div><button onClick={() => setModal(tab === "bills" ? "bill" : "debt")} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white">+ Add {tab === "bills" ? "obligation" : "debt"}</button></header>
     {message && <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">{message}</p>}
     <div className="mb-6 flex gap-2">{(["bills", "debts"] as const).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-full px-5 py-2 text-xs font-bold capitalize ${tab === item ? "bg-emerald-700 text-white" : "border border-gray-200 bg-white text-gray-600"}`}>{item === "bills" ? "Bills & recurring obligations" : "Borrowed & lent money"}</button>)}</div>
     {tab === "bills" ? <>
@@ -78,10 +78,13 @@ function BillModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => P
 }
 function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => Promise<void> }) {
   const [title, setTitle] = useState(""); const [amount, setAmount] = useState(""); const [repayment, setRepayment] = useState(""); const [deadline, setDeadline] = useState(""); const [type, setType] = useState<"BORROWED" | "LENT">("BORROWED"); const [frequency, setFrequency] = useState<"ONE_TIME" | "WEEKLY" | "MONTHLY">("MONTHLY");
+  const [walletId, setWalletId] = useState<string | null>(null);
+  const [alreadyIncluded, setAlreadyIncluded] = useState(false);
   const isOneTime = frequency === "ONE_TIME";
   return <Modal title="Record borrowed or lent money" onClose={onClose}>
     <form onSubmit={async (event) => {
       event.preventDefault();
+      if (!walletId && !alreadyIncluded) return;
       await loanService.createLoan({
         title,
         amount: Number(amount),
@@ -89,6 +92,8 @@ function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => P
         deadline,
         repaymentAmount: Number(isOneTime ? amount : repayment),
         repaymentFrequency: frequency,
+        walletId,
+        principalAlreadyIncluded: alreadyIncluded,
       });
       await onSaved();
     }}>
@@ -121,6 +126,11 @@ function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => P
       <Field label={isOneTime ? "Payment due date" : "Next due date"}>
         <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} required className="modal-input" />
       </Field>
+      <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+        <input type="checkbox" checked={alreadyIncluded} onChange={(event) => setAlreadyIncluded(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-700" />
+        <span><strong className="block text-slate-900">Already included in my current account balance</strong><span className="mt-1 block leading-5">Use this for an existing {type === "BORROWED" ? "debt" : "amount lent"}. Casha-Ba will record what is owed without changing a wallet again.</span></span>
+      </label>
+      {!alreadyIncluded && <WalletSelector value={walletId} onChange={setWalletId} kind="ASSET" label={type === "BORROWED" ? "Account that received the money" : "Account the money came from"} />}
       <SubmitButtons onClose={onClose} label="Record debt" />
     </form>
   </Modal>;

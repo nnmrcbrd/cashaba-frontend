@@ -1,6 +1,7 @@
 import { Transaction } from "@/app/types";
 
-interface ReportData {
+export interface ReportData {
+  allowanceLabel?: string;
   userName: string;
   userEmail: string;
   safeToSpend: number;
@@ -10,13 +11,20 @@ interface ReportData {
   transactions: Transaction[];
 }
 
-export function exportFinancialReport(data: ReportData) {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    alert("Please allow popups to export PDF report.");
-    return;
-  }
-
+export function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
+}
+function reportMoney(amount: number) {
+  return `${amount < 0 ? '−' : ''}₱${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+}
+export function movementSign(transaction: Pick<Transaction, 'type' | 'category'>) {
+  if (['income', 'loan_collection', 'loan_proceeds'].includes(transaction.type)) return '+';
+  if (['expense', 'bill_payment', 'debt_payment', 'loan_disbursement'].includes(transaction.type)) return '−';
+  if (['savings_contribution', 'savings_withdrawal'].includes(transaction.type)) return '↔';
+  if (transaction.type === 'adjustment') return transaction.category === 'Balance Decrease' ? '−' : '+';
+  return '↔';
+}
+export function buildFinancialReportHtml(data: ReportData) {
   const dateStr = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -24,17 +32,16 @@ export function exportFinancialReport(data: ReportData) {
   });
 
   const rowsHtml = data.transactions
-    .slice(0, 50)
     .map(
       (t) => `
     <tr style="border-bottom: 1px solid #e5e7eb;">
-      <td style="padding: 8px; color: #4b5563;">${t.date}</td>
-      <td style="padding: 8px; font-weight: 600; color: #111827;">${t.description || t.category}</td>
-      <td style="padding: 8px; color: #4b5563;">${t.category}</td>
+      <td style="padding: 8px; color: #4b5563;">${escapeHtml(t.date)}</td>
+      <td style="padding: 8px; font-weight: 600; color: #111827;">${escapeHtml(t.description || t.category)}</td>
+      <td style="padding: 8px; color: #4b5563;">${escapeHtml(t.category)}</td>
       <td style="padding: 8px; font-weight: 700; color: ${
-        t.type === "income" ? "#16a34a" : "#dc2626"
+        movementSign(t) === "+" ? "#16a34a" : movementSign(t) === "−" ? "#dc2626" : "#2563eb"
       };">
-        ${t.type === "income" ? "+" : "-"}₱${t.amount.toLocaleString("en-US", {
+        ${movementSign(t)}₱${t.amount.toLocaleString("en-US", {
         minimumFractionDigits: 2,
       })}
       </td>
@@ -46,8 +53,8 @@ export function exportFinancialReport(data: ReportData) {
   const html = `
     <!DOCTYPE html>
     <html>
-      <head>
-        <title>CASHA-BA Financial Report - ${data.userName}</title>
+      <head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+        <title>CASHA-BA Financial Report - ${escapeHtml(data.userName)}</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1f2937; line-height: 1.5; }
           .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #16a34a; padding-bottom: 20px; margin-bottom: 30px; }
@@ -61,9 +68,11 @@ export function exportFinancialReport(data: ReportData) {
           .card-value.green { color: #16a34a; }
           .card-value.safe { color: #047857; font-size: 22px; }
           .card-value.red { color: #dc2626; }
+          tr { break-inside: avoid; }
+          thead { display: table-header-group; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
           th { background: #f3f4f6; text-align: left; padding: 10px; font-weight: 700; color: #374151; border-bottom: 2px solid #e5e7eb; }
-          .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; pt-15px; font-size: 11px; color: #9ca3af; text-align: center; }
+          .footer { margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 15px; font-size: 11px; color: #9ca3af; text-align: center; }
           @media print {
             body { padding: 20px; }
             .no-print { display: none; }
@@ -79,30 +88,30 @@ export function exportFinancialReport(data: ReportData) {
           <div style="text-align: right;">
             <div class="title">Financial Summary Report</div>
             <div style="font-size: 12px; color: #4b5563;">Date: ${dateStr}</div>
-            <div style="font-size: 12px; color: #4b5563;">User: ${data.userName} (${data.userEmail})</div>
+            <div style="font-size: 12px; color: #4b5563;">User: ${escapeHtml(data.userName)} (${escapeHtml(data.userEmail)})</div>
           </div>
         </div>
 
         <div class="summary-grid">
           <div class="card" style="background: #ecfdf5; border-color: #a7f3d0;">
-            <div class="card-title" style="color: #047857;">Safe-to-Spend</div>
-            <div class="card-value safe">₱${data.safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            <div class="card-title" style="color: #047857;">${escapeHtml(data.allowanceLabel || "Safe-to-Spend")}</div>
+            <div class="card-value ${data.safeToSpend < 0 ? 'red' : 'safe'}">${reportMoney(data.safeToSpend)}</div>
           </div>
           <div class="card">
             <div class="card-title">Total Income</div>
-            <div class="card-value green">₱${data.totalIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            <div class="card-value green">${reportMoney(data.totalIncome)}</div>
           </div>
           <div class="card">
             <div class="card-title">Total Expenses</div>
-            <div class="card-value red">₱${data.totalExpense.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            <div class="card-value red">${reportMoney(data.totalExpense)}</div>
           </div>
           <div class="card">
             <div class="card-title">Net Balance</div>
-            <div class="card-value green">₱${data.netBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            <div class="card-value ${data.netBalance < 0 ? 'red' : 'green'}">${reportMoney(data.netBalance)}</div>
           </div>
         </div>
 
-        <h3 style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 10px;">Recent Transaction History</h3>
+        <h3 style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 10px;">Selected Transaction History (${data.transactions.length} movements)</h3>
         <table>
           <thead>
             <tr>
@@ -118,18 +127,23 @@ export function exportFinancialReport(data: ReportData) {
         </table>
 
         <div class="footer">
-          Generated automatically by Casha-Ba Financial Management System · Confirmed & Verified
+          Generated automatically by Casha-Ba Financial Management System · Savings and wallet transfers are internal movements and are excluded from income, expenses, and net balance.
         </div>
 
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        </script>
+
       </body>
     </html>
   `;
 
-  printWindow.document.write(html);
+  return html;
+}
+
+export function exportFinancialReport(data: ReportData) {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) { alert('Please allow popups to export the report.'); return; }
+  printWindow.opener = null;
+  printWindow.document.write(buildFinancialReportHtml(data));
   printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
 }

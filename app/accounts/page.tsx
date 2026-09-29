@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import Sidebar from "@/app/components/ui/sidebar";
 import { walletService } from "@/services/walletService";
+import { loanService, type LoanSummary } from "@/services/loanService";
+import { calculateNetWorth } from "@/lib/netWorth";
 import type { AccountType, Wallet, WalletInput } from "@/app/types";
 
 const ACCOUNT_TYPES: Array<{
@@ -73,6 +75,7 @@ function requestError(error: unknown, fallback: string) {
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Wallet[]>([]);
+  const [loanSummary, setLoanSummary] = useState<LoanSummary>({ totalBorrowed: 0, totalLent: 0, overdueCount: 0, scheduledDue: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -82,7 +85,12 @@ export default function AccountsPage() {
     setLoading(true);
     setError("");
     try {
-      setAccounts(await walletService.getWallets());
+      const [walletData, loanData] = await Promise.all([
+        walletService.getWallets(),
+        loanService.getLoans(),
+      ]);
+      setAccounts(walletData);
+      setLoanSummary(loanData.summary);
     } catch (reason) {
       setError(requestError(reason, "Unable to load your accounts."));
     } finally {
@@ -92,10 +100,12 @@ export default function AccountsPage() {
 
   useEffect(() => {
     let active = true;
-    walletService
-      .getWallets()
-      .then((data) => {
-        if (active) setAccounts(data);
+    Promise.all([walletService.getWallets(), loanService.getLoans()])
+      .then(([walletData, loanData]) => {
+        if (active) {
+          setAccounts(walletData);
+          setLoanSummary(loanData.summary);
+        }
       })
       .catch((reason) => {
         if (active) setError(requestError(reason, "Unable to load your accounts."));
@@ -108,15 +118,10 @@ export default function AccountsPage() {
     };
   }, []);
 
-  const totals = useMemo(() => {
-    const assets = accounts
-      .filter((account) => account.kind === "ASSET")
-      .reduce((total, account) => total + account.balance, 0);
-    const liabilities = accounts
-      .filter((account) => account.kind === "LIABILITY")
-      .reduce((total, account) => total + account.balance, 0);
-    return { assets, liabilities, netWorth: assets - liabilities };
-  }, [accounts]);
+  const totals = useMemo(
+    () => calculateNetWorth(accounts, loanSummary),
+    [accounts, loanSummary],
+  );
 
   function openCreate() {
     setEditing(null);
@@ -164,8 +169,18 @@ export default function AccountsPage() {
         </header>
 
         <section className="mb-6 grid gap-4 md:grid-cols-3">
-          <SummaryCard label="Total assets" value={totals.assets} tone="emerald" />
-          <SummaryCard label="Total liabilities" value={totals.liabilities} tone="rose" />
+          <SummaryCard
+            label="Total assets"
+            value={totals.totalAssets}
+            note={`Wallets ${formatCurrency(totals.walletAssets)} · Money lent ${formatCurrency(totals.receivables)}`}
+            tone="emerald"
+          />
+          <SummaryCard
+            label="Total liabilities"
+            value={totals.totalLiabilities}
+            note={`Accounts ${formatCurrency(totals.accountLiabilities)} · Borrowed ${formatCurrency(totals.borrowedDebt)}`}
+            tone="rose"
+          />
           <SummaryCard label="Net worth" value={totals.netWorth} tone={totals.netWorth < 0 ? "rose" : "blue"} />
         </section>
 
@@ -218,7 +233,7 @@ export default function AccountsPage() {
                       <div className="min-w-0">
                         <h2 className="truncate text-sm font-bold">{account.name}</h2>
                         <p className="truncate text-[11px] text-white/75">
-                          {account.institution || accountLabel(account.accountType)}
+                          {account.customType || account.institution || accountLabel(account.accountType)}
                         </p>
                       </div>
                     </div>
@@ -267,10 +282,12 @@ function SummaryCard({
   label,
   value,
   tone,
+  note,
 }: {
   label: string;
   value: number;
   tone: "emerald" | "rose" | "blue";
+  note?: string;
 }) {
   const tones = {
     emerald: "border-emerald-200 text-emerald-700",
@@ -281,6 +298,7 @@ function SummaryCard({
     <div className={`rounded-2xl border-t-4 bg-white p-5 shadow-sm ${tones[tone]}`}>
       <p className="text-xs font-medium text-gray-500">{label}</p>
       <p className="mt-2 text-2xl font-bold">{formatCurrency(value)}</p>
+      {note && <p className="mt-1 text-[10px] text-gray-500">{note}</p>}
     </div>
   );
 }
@@ -300,6 +318,7 @@ function AccountModal({
           name: account.name,
           institution: account.institution || "",
           accountType: account.accountType,
+          customType: account.customType || "",
           kind: account.kind,
           openingBalance: account.openingBalance,
           icon: account.icon,
@@ -315,6 +334,7 @@ function AccountModal({
     setForm((current) => ({
       ...current,
       accountType,
+      customType: accountType === "OTHER" ? current.customType : "",
       icon: option.icon,
       kind: accountType === "CREDIT_CARD" ? "LIABILITY" : current.kind,
     }));
@@ -378,6 +398,21 @@ function AccountModal({
           ))}
         </div>
 
+        {form.accountType === "OTHER" && (
+          <div className="mb-4">
+            <label htmlFor="custom-account-type" className="mb-1 block text-xs font-semibold text-gray-700">Name this account type</label>
+            <input
+              id="custom-account-type"
+              value={form.customType || ""}
+              onChange={(event) => setForm({ ...form, customType: event.target.value })}
+              placeholder="e.g. Cooperative, digital bank, or cash envelope"
+              maxLength={40}
+              required
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-semibold text-gray-700">Institution (optional)</label>
@@ -402,6 +437,9 @@ function AccountModal({
               required
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
+            {form.kind === "LIABILITY" && (
+              <p className="mt-1.5 text-[11px] leading-4 text-gray-500">Charges increase what you owe; payments reduce it. Record a card payment as a transfer into this account.</p>
+            )}
           </div>
         </div>
 

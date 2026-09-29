@@ -10,18 +10,13 @@ interface BankImportModalProps {
   onImportSuccess: (count: number) => void;
 }
 
-const BANKS = [
-  { id: "gcash", label: "GCash CSV Export" },
-  { id: "bdo", label: "BDO Bank Statement" },
-  { id: "bpi", label: "BPI Online CSV" },
-  { id: "unionbank", label: "UnionBank CSV" },
-  { id: "generic", label: "Generic CSV (Any Bank)" },
-];
+const BANKS = [{ id: 'generic', label: 'Normalized CSV' }];
 
 export default function BankImportModal({ onClose, onImportSuccess }: BankImportModalProps) {
   const [bankType, setBankType] = useState("generic");
   const [file, setFile] = useState<File | null>(null);
   const [walletId, setWalletId] = useState<string | null>(null);
+  const [allowDuplicateRows, setAllowDuplicateRows] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +42,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
       });
       const base64 = dataUrl.split(",", 2)[1];
 
-      const res = await apiClient.post("/transactions/import-csv", { csvBase64: base64, bankType, walletId });
+      const res = await apiClient.post("/transactions/import-csv", { csvBase64: base64, bankType, walletId, allowDuplicateRows });
       setResult({ imported: res.data.imported, skipped: res.data.skipped });
       onImportSuccess(res.data.imported);
     } catch (err) {
@@ -73,7 +68,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
           <span className="text-2xl">🏦</span>
           <div>
             <h2 className="text-base font-bold text-gray-900">Import Bank Statement</h2>
-            <p className="text-xs text-gray-500">Upload a CSV from your bank to bulk-import transactions.</p>
+            <p className="text-xs text-gray-500">Use Date (YYYY-MM-DD), Description, and signed Amount: negative for expenses, positive for income. Debit/Credit columns are also supported.</p>
           </div>
         </div>
 
@@ -83,7 +78,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
             <h3 className="text-sm font-bold text-gray-900 mb-1">Import Complete!</h3>
             <p className="text-xs text-gray-600">
               <strong className="text-emerald-700">{result.imported} transactions</strong> imported
-              {result.skipped > 0 && `, ${result.skipped} skipped because they could not be saved`}.
+              {result.skipped > 0 && `, ${result.skipped} matched previously imported rows and were skipped`}.
             </p>
             <button
               onClick={onClose}
@@ -115,6 +110,7 @@ export default function BankImportModal({ onClose, onImportSuccess }: BankImport
               </div>
             </div>
 
+            <label className="flex gap-2 text-xs text-gray-600"><input type="checkbox" checked={allowDuplicateRows} onChange={event => setAllowDuplicateRows(event.target.checked)} />Import matching rows again. Only select this after confirming they are separate, legitimate transactions.</label>
             {/* File Upload */}
             <WalletSelector value={walletId} onChange={setWalletId} label="Account for imported entries" />
             <div>

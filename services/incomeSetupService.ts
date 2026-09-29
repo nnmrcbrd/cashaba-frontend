@@ -92,7 +92,7 @@ export const incomeSetupService = {
     return res.data;
   },
 
-  async updateSavingsGoal(id: string, updates: { addAmount?: number; withdrawAmount?: number; walletId?: string | null; isCompleted?: boolean; monthlyAllocation?: number }): Promise<{ goal: SavingsGoal; safeToSpend: number }> {
+  async updateSavingsGoal(id: string, updates: { name?: string; targetAmount?: number; addAmount?: number; withdrawAmount?: number; walletId?: string | null; isCompleted?: boolean; monthlyAllocation?: number }): Promise<{ goal: SavingsGoal; safeToSpend: number }> {
     const res = await apiClient.patch(`/income-setup/savings-goals/${id}`, updates);
     return res.data;
   },

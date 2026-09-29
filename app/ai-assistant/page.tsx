@@ -11,6 +11,8 @@ export default function AIAssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [requiresConfirmation, setRequiresConfirmation] = useState(false);
+  const [confirmationId, setConfirmationId] = useState<string | null>(null);
+  const [assistantEngine, setAssistantEngine] = useState<"gemini" | "fallback" | "unknown">("unknown");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -39,8 +41,11 @@ export default function AIAssistantPage() {
           });
           setMessages(loaded);
           setRequiresConfirmation(res.data.at(-1)?.state === "AWAITING_CONFIRMATION");
+          setConfirmationId(res.data.at(-1)?.state === "AWAITING_CONFIRMATION" ? res.data.at(-1).id : null);
+          const latestModel = res.data.at(-1)?.model;
+          setAssistantEngine(typeof latestModel === "string" && latestModel.startsWith("gemini-") ? "gemini" : latestModel ? "fallback" : "unknown");
         } else {
-          // No history — show welcome + auto-trigger daily brief
+          // No history — show a welcome message without spending the user's quota.
           setMessages([
             {
               id: "welcome",
@@ -49,26 +54,6 @@ export default function AIAssistantPage() {
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             }
           ]);
-          // Auto-send daily brief for new sessions
-          setTimeout(async () => {
-            setLoading(true);
-            try {
-              const briefRes = await apiClient.post("/ai/chat", { message: "Give me my daily financial brief" });
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: briefRes.data.id || crypto.randomUUID(),
-                  role: "assistant" as const,
-                  content: briefRes.data.content,
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                },
-              ]);
-            } catch (err) {
-              console.warn("Daily brief auto-fetch failed:", err);
-            } finally {
-              setLoading(false);
-            }
-          }, 800);
         }
       } catch (err) {
         console.error("Failed to load AI history", err);
@@ -95,7 +80,7 @@ export default function AIAssistantPage() {
     setLoading(true);
 
     try {
-      const res = await apiClient.post("/ai/chat", { message: text });
+      const res = await apiClient.post("/ai/chat", { message: text, confirmationId });
       const replyMsg: ChatMessage = {
         id: res.data.id || crypto.randomUUID(),
         role: "assistant",
@@ -104,6 +89,8 @@ export default function AIAssistantPage() {
       };
       setMessages((prev) => [...prev, replyMsg]);
       setRequiresConfirmation(Boolean(res.data.requiresConfirmation));
+      setConfirmationId(res.data.requiresConfirmation ? res.data.id : null);
+      if (typeof res.data.model === "string") setAssistantEngine(res.data.model.startsWith("gemini-") ? "gemini" : "fallback");
     } catch (err) {
       console.error("AI Error:", err);
       const responseMessage = axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : null;
@@ -138,14 +125,14 @@ export default function AIAssistantPage() {
         <div className="app-page-header mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/60 pb-4">
           <h1>AI Assistant</h1>
           <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-semibold">
-            ✨ Powered by Gemini
+            {assistantEngine === "gemini" ? "✨ Powered by Gemini" : assistantEngine === "fallback" ? "Built-in assistant" : "AI Assistant"}
           </span>
         </div>
 
         {/* Main Content Area */}
-        <div className="grid flex-1 grid-cols-1 items-start gap-6 lg:grid-cols-4">
+        <div className="grid min-w-0 flex-1 grid-cols-1 items-start gap-6 lg:grid-cols-4">
           {/* Chat Window */}
-          <div className="flex h-[70vh] min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:col-span-3 lg:h-[calc(100vh-180px)]">
+          <div className="flex h-[70vh] min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:col-span-3 lg:h-[calc(100vh-180px)]">
             <div className="flex-1 p-6 space-y-4 overflow-y-auto bg-[#f9fbf9]">
               {messages.map((m) => {
                 const isUser = m.role === "user";
@@ -181,7 +168,7 @@ export default function AIAssistantPage() {
             {requiresConfirmation && !loading && <div className="flex gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3"><button type="button" onClick={() => sendMessage("confirm")} className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Confirm and save</button><button type="button" onClick={() => sendMessage("cancel")} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700">Cancel</button></div>}
             <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-200 flex gap-3">
               <input
-                className="flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="min-w-0 flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="Ask AI or log expense (e.g. Spent 150 on groceries)..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -189,7 +176,7 @@ export default function AIAssistantPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white px-5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center transition"
+                className="shrink-0 bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white px-5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center transition"
               >
                 ➢
               </button>
@@ -286,4 +273,5 @@ interface AiHistoryItem {
   answer: string;
   createdAt: string;
   state?: string;
+  model?: string;
 }

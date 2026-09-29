@@ -27,10 +27,12 @@ const ROLES = [
 export default function OnboardingRolePage() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(() =>
+    (user?.role || []).filter((role) => ROLES.some((item) => item.value === role)),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [customRole, setCustomRole] = useState("");
+  const [customRole, setCustomRole] = useState(user?.customRole || "");
 
   function toggle(role: string) {
     setSelected((current) =>
@@ -42,7 +44,7 @@ export default function OnboardingRolePage() {
 
   async function handleContinue(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!user || selected.length === 0) return;
+    if (!user || (selected.length === 0 && !customRole.trim())) return;
 
     setSaving(true);
     setError("");

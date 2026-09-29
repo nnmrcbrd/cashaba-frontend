@@ -10,6 +10,24 @@ export function getApiAccessToken() {
   return accessToken;
 }
 
+// Startup and expired API requests must share the same one-use cookie rotation.
+export function refreshApiAccessToken(): Promise<string> {
+  if (!refreshRequest) {
+    refreshRequest = axios.post(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/refresh`,
+      {},
+      { withCredentials: true },
+    ).then((response) => {
+      const token = response.data.accessToken as string;
+      setApiAccessToken(token);
+      return token;
+    }).finally(() => {
+      refreshRequest = null;
+    });
+  }
+  return refreshRequest;
+}
+
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
   headers: {
@@ -20,6 +38,9 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
+    if (['post', 'put', 'patch', 'delete'].includes(config.method || '') && !config.headers['Idempotency-Key']) {
+      config.headers['Idempotency-Key'] = crypto.randomUUID();
+    }
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -37,21 +58,7 @@ apiClient.interceptors.response.use(
     if (status === 401 && !isAuthRequest && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        if (!refreshRequest) {
-          refreshRequest = axios
-            .post(
-              `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/refresh`,
-              {},
-              { withCredentials: true },
-            )
-            .then((response) => response.data.accessToken as string)
-            .finally(() => {
-              refreshRequest = null;
-            });
-        }
-
-        const accessToken = await refreshRequest;
-        setApiAccessToken(accessToken);
+        const accessToken = await refreshApiAccessToken();
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {

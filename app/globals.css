@@ -176,11 +176,11 @@
     letter-spacing: -0.02em;
   }
 
-  .app-page-header--sticky {
+.app-page-header--sticky {
     position: sticky;
     top: 0;
     z-index: 30;
-    background: color-mix(in srgb, var(--app-canvas) 92%, transparent);
+    background: var(--app-canvas);
     backdrop-filter: blur(14px);
   }
 
@@ -197,6 +197,25 @@
     .app-main {
       padding: 2rem;
     }
+  }
+
+  @media (max-width: 1023px) {
+    .app-main {
+      padding-top: 5.25rem;
+      padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+    }
+
+    .app-page-header--sticky {
+      position: static;
+      top: auto;
+    }
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-page-header[data-theme-host="true"] {
+    position: relative;
+    padding-right: 4.5rem;
   }
 }
 
@@ -320,11 +339,11 @@
   background-color: rgba(16, 185, 129, 0.13) !important;
 }
 
-:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-amber-50, .bg-amber-50\/50, .bg-amber-100, .bg-yellow-50, .bg-yellow-100) {
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-amber-50, .bg-amber-50\/50, .bg-amber-50\/60, .bg-amber-100, .bg-yellow-50, .bg-yellow-100) {
   background-color: rgba(245, 158, 11, 0.13) !important;
 }
 
-:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-red-50, .bg-red-50\/50, .bg-red-100, .bg-rose-50, .bg-rose-50\/50, .bg-rose-100) {
+:is(.dark, [data-app-theme="dark"], [data-app-theme="amoled"]) :is(.bg-red-50, .bg-red-50\/50, .bg-red-100, .bg-rose-50, .bg-rose-50\/50, .bg-rose-50\/60, .bg-rose-100) {
   background-color: rgba(244, 63, 94, 0.13) !important;
 }
 

@@ -8,9 +8,9 @@ import { useAuth } from "@/context/Authcontext";
 import { ROUTES } from "@/constants/index";
 import { incomeSetupService } from "@/services/incomeSetupService";
 import apiClient from "@/lib/apiClient";
-import { useTheme } from "@/context/ThemeContext";
+import axios from "axios";
 
-const TABS = ["Profile", "Income", "Preferences", "Appearance", "Security"] as const;
+const TABS = ["Profile", "Income", "Preferences", "Security"] as const;
 const ROLE_OPTIONS = ["Student", "Freelance", "Working", "Married"] as const;
 
 function prepareProfilePhoto(file: File): Promise<string> {
@@ -53,7 +53,6 @@ function prepareProfilePhoto(file: File): Promise<string> {
 
 export default function SettingsPage() {
   const { user, refreshUser, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Profile");
 
   // Profile Form state matching Figma fields
@@ -224,16 +223,17 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteAccount() {
-    if (deleteConfirm !== "DELETE" || !deletePassword) {
-      setPrivacyMsg("Enter your password and type DELETE to confirm.");
+    const googleAccount = user?.authMethod === "GOOGLE";
+    if (deleteConfirm !== "DELETE" || (!googleAccount && !deletePassword)) {
+      setPrivacyMsg(googleAccount ? "Type DELETE to confirm." : "Enter your password and type DELETE to confirm.");
       return;
     }
     try {
       setDeleting(true);
-      await apiClient.delete("/users/me", { data: { password: deletePassword } });
+      await apiClient.delete("/users/me", { data: { password: deletePassword, confirmation: deleteConfirm } });
       await logout();
-    } catch {
-      setPrivacyMsg("Account deletion failed. Check your password and try again.");
+    } catch (error) {
+      setPrivacyMsg(axios.isAxiosError<{ message?: string }>(error) ? error.response?.data?.message || "Account deletion failed. Please try again." : "Account deletion failed. Please try again.");
       setDeleting(false);
     }
   }
@@ -604,80 +604,6 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
-        {/* Tab 5: Appearance Settings (Theme Engine) */}
-        {tab === "Appearance" && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-gray-200/90 p-8 shadow-sm">
-              <div className="mb-6">
-                <h2 className="text-base font-bold text-[#186849]">Appearance</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Choose your preferred app theme.</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {([
-                  {
-                    id: "light",
-                    label: "☀️ Light",
-                    desc: "Clean white interface",
-                    bg: "bg-white",
-                    border: "border-gray-200",
-                    preview: "bg-gray-50",
-                  },
-                  {
-                    id: "dark",
-                    label: "🌙 Dark",
-                    desc: "Easy on the eyes",
-                    bg: "bg-gray-900",
-                    border: "border-gray-700",
-                    preview: "bg-gray-800",
-                  },
-                  {
-                    id: "amoled",
-                    label: "⬛ Amoled",
-                    desc: "Pure black for OLED",
-                    bg: "bg-black",
-                    border: "border-gray-800",
-                    preview: "bg-gray-950",
-                  },
-                ] as const).map((t) => (
-                  <button
-                    key={t.id}
-                    id={`theme-${t.id}`}
-                    type="button"
-                    onClick={() => setTheme(t.id)}
-                    aria-pressed={theme === t.id}
-                    className={`relative p-4 rounded-2xl border-2 transition-all duration-200 text-left
-                      ${theme === t.id
-                        ? "border-[#186849] ring-2 ring-[#186849]/20"
-                        : "border-gray-200 hover:border-gray-300"
-                      }`}
-                  >
-                    {/* Preview swatch */}
-                    <div
-                      data-theme-preview={t.id}
-                      className={`mb-3 flex h-16 w-full items-center justify-center gap-1 rounded-xl border ${t.preview} ${t.border}`}
-                    >
-                      <div className={`w-3 h-3 rounded-full ${t.id === "light" ? "bg-emerald-500" : "bg-emerald-400"}`} />
-                      <div className={`w-8 h-1.5 rounded-full ${t.id === "light" ? "bg-gray-300" : "bg-gray-600"}`} />
-                    </div>
-                    <p className="text-xs font-bold text-gray-800">{t.label}</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5">{t.desc}</p>
-                    {theme === t.id && (
-                      <span className="absolute top-2 right-2 text-[10px] bg-[#186849] text-white px-2 py-0.5 rounded-full font-bold">
-                        Active
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-[11px] text-gray-400 mt-4">
-                Theme preference is saved locally and applied instantly across all pages.
-              </p>
-            </div>
-          </div>
-        )}
-
       </main>
 
       {showDeleteModal && (
@@ -712,7 +638,7 @@ export default function SettingsPage() {
             </div>
 
             <p id="delete-account-description" className="mt-3 text-sm leading-6 text-gray-600">
-              Your profile, wallets, transactions, budgets, goals, obligations, and other financial records will be permanently removed. This cannot be undone.
+              Your profile, wallets, transactions, budgets, goals, obligations, and other financial records will be permanently removed. Any PayMongo subscription must be cancelled first; if cancellation fails, your account will remain available. This cannot be undone.
             </p>
 
             <form
@@ -722,7 +648,7 @@ export default function SettingsPage() {
                 void handleDeleteAccount();
               }}
             >
-              <div>
+              {user?.authMethod !== "GOOGLE" && <div>
                 <label htmlFor="delete-password" className="field-label">Current password</label>
                 <input
                   id="delete-password"
@@ -734,7 +660,8 @@ export default function SettingsPage() {
                   autoFocus
                   required
                 />
-              </div>
+              </div>}
+              {user?.authMethod === "GOOGLE" && <p className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">You signed in with Google. Your current authenticated session confirms your identity.</p>}
               <div>
                 <label htmlFor="delete-confirm" className="field-label">Type DELETE to confirm</label>
                 <input
@@ -754,7 +681,7 @@ export default function SettingsPage() {
                 <button type="button" onClick={closeDeleteModal} disabled={deleting} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-40">
                   Cancel
                 </button>
-                <button type="submit" disabled={deleting || deleteConfirm !== "DELETE" || !deletePassword} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40">
+                <button type="submit" disabled={deleting || deleteConfirm !== "DELETE" || (user?.authMethod !== "GOOGLE" && !deletePassword)} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40">
                   {deleting ? "Deleting..." : "Delete permanently"}
                 </button>
               </div>

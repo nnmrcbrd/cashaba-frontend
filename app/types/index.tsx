@@ -19,7 +19,7 @@ export interface User {
   authMethod?: "LOCAL" | "GOOGLE";
 }
 
-export type TransactionType = "income" | "expense" | "transfer" | "adjustment" | "savings_contribution" | "savings_withdrawal" | "bill_payment" | "debt_payment" | "loan_collection";
+export type TransactionType = "income" | "expense" | "transfer" | "adjustment" | "savings_contribution" | "savings_withdrawal" | "bill_payment" | "debt_payment" | "loan_collection" | "loan_proceeds" | "loan_disbursement";
 
 export interface Transaction {
   id: string;
@@ -32,6 +32,7 @@ export interface Transaction {
   wallet?: Pick<Wallet, "id" | "name" | "color"> | null;
   destinationWalletId?: string | null;
   destinationWallet?: Pick<Wallet, "id" | "name" | "color"> | null;
+  loanId?: string | null;
   savingsGoalId?: string | null;
   fixedExpenseId?: string | null;
 }
@@ -44,6 +45,7 @@ export interface Wallet {
   name: string;
   institution?: string | null;
   accountType: AccountType;
+  customType?: string | null;
   kind: AccountKind;
   openingBalance: number;
   balance: number;

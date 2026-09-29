@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarDays, CalendarRange } from "lucide-react";
 import { ROUTES } from "@/constants";
@@ -16,6 +16,16 @@ export default function OnboardingIncomePage() {
   const [period, setPeriod] = useState<"Weekly" | "Monthly">("Monthly");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    incomeSetupService.getIncomeSetup().then(({ setup }) => {
+      if (!active || !setup) return;
+      setIncome(String(setup.totalIncome));
+      setPeriod(setup.incomePeriod.toLowerCase() === "weekly" ? "Weekly" : "Monthly");
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   async function handleFinish(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,6 +52,7 @@ export default function OnboardingIncomePage() {
       description="Enter the amount available in one income period. Casha-Ba uses this value as the starting point for Safe-to-Spend."
       asideTitle="Give every peso a realistic starting point."
       asideDescription="Choose the period that matches how you normally receive or plan your income. Calculations will follow that period."
+      onBack={() => router.push(ROUTES.ONBOARDING_ROLE)}
     >
       <form onSubmit={handleFinish}>
         <label htmlFor="income" className="text-xs font-semibold text-slate-700">

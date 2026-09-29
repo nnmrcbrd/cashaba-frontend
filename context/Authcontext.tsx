@@ -10,7 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ROUTES } from "../constants/index";
 import { User } from "../app/types/index";
-import apiClient, { setApiAccessToken } from "@/lib/apiClient";
+import apiClient, { refreshApiAccessToken, setApiAccessToken } from "@/lib/apiClient";
 import axios from "axios";
 
 interface AuthContextValue {
@@ -92,16 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let active = true;
     const initializeAuth = async () => {
       try {
-        const refreshRes = await apiClient.post("/auth/refresh");
-        const savedToken = refreshRes.data.accessToken as string;
-        setApiAccessToken(savedToken);
+        const savedToken = await refreshApiAccessToken();
+        if (!active) return;
         setToken(savedToken);
         const res = await apiClient.get("/users/me");
+        if (!active) return;
         const freshUser = mapBackendUser(res.data);
         setUser(freshUser);
       } catch {
+        if (!active) return;
         setApiAccessToken(null);
         setToken(null);
         setUser(null);
@@ -110,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initializeAuth();
+    return () => { active = false; };
   }, []);
 
   async function login(email: string, password: string): Promise<User | null> {
@@ -156,9 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (res.status === 201) {
-        // Automatically login the user after successful registration
-        const loggedUser = await login(email, password);
-        return !!loggedUser;
+        return true;
       }
       return false;
     } catch (error) {
