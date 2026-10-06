@@ -122,7 +122,7 @@ export default function DashboardPage() {
   const balanceSummary = calculateNetWorth(wallets, loanSummary);
 
   const incomePeriod = incomeSetup?.incomePeriod || "monthly";
-  const plannedWeeklyIncome = incomePeriod === "weekly" ? (incomeSetup?.totalIncome ?? 0) : (incomeSetup?.totalIncome ?? 0) / 4.33;
+  const plannedWeeklyIncome = Math.round((incomePeriod === "weekly" ? (incomeSetup?.totalIncome ?? 0) : (incomeSetup?.totalIncome ?? 0) / (52 / 12)) * 100) / 100;
 
   const totalSaved = savingsGoals.reduce((sum, g) => sum + g.currentAmount, 0);
   const totalSavingsAllocations = savingsGoals
@@ -270,7 +270,7 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-500 font-medium">Planned weekly income</span>
-                <span className="font-bold text-blue-600">₱{plannedWeeklyIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                <span className="font-bold text-blue-600">₱{plannedWeeklyIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>

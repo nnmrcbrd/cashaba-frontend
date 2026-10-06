@@ -9,7 +9,7 @@ import { CATEGORIES } from "@/constants";
 import { transactionService } from "@/services/transactionService";
 import WalletSelector from "@/app/components/WalletSelector";
 
-type ReceiptTransactionType = "expense" | "income";
+type ReceiptTransactionType = "expense" | "income" | "";
 
 interface ReceiptDraft {
   amount: string;
@@ -54,12 +54,12 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
       const parsed = response.data?.parsed;
       if (!parsed) throw new Error("No transaction details were returned.");
 
-      const type: ReceiptTransactionType = parsed.transactionType === "INCOME" ? "income" : "expense";
+      const type: ReceiptTransactionType = parsed.transactionType === "INCOME" ? "income" : parsed.transactionType === "EXPENSE" ? "expense" : "";
       const availableCategories = categoriesFor(type);
       setDraft({
         amount: String(parsed.amount ?? ""),
         description: String(parsed.description ?? ""),
-        date: String(parsed.date ?? new Date().toISOString().slice(0, 10)).slice(0, 10),
+        date: String(parsed.date ?? "").slice(0, 10),
         category: availableCategories.includes(parsed.category) ? parsed.category : availableCategories.at(-1) || "Others",
         type,
       });
@@ -105,7 +105,7 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
   }
 
   async function saveTransaction() {
-    if (!draft || !walletId || !draft.description.trim() || !draft.category || !draft.date || Number(draft.amount) <= 0) return;
+    if (!draft || !draft.type || !walletId || !draft.description.trim() || !draft.category || !draft.date || !Number.isFinite(Number(draft.amount)) || Number(draft.amount) <= 0) return;
     setSaving(true);
     setError("");
     try {
@@ -128,6 +128,7 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
 
   return (
     <div>
+      <p className="mb-3 text-xs text-slate-600">Scanning sends this image to Google Gemini. Crop or cover account numbers and unrelated personal details first. You can enter the transaction manually instead. Casha-Ba does not save the image; provider processing follows its service terms.</p>
       {!preview ? (
         <div
           onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
@@ -174,12 +175,14 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
               <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50/60 text-emerald-800">
                 <LoaderCircle className="h-8 w-8 animate-spin" aria-hidden="true" />
                 <p className="mt-3 text-sm font-bold">Reading transaction details…</p>
-                <p className="mt-1 text-xs text-emerald-700/70">The image is processed temporarily and is not saved.</p>
+                <p className="mt-1 text-xs text-emerald-700/70">Google Gemini is reading the image. Casha-Ba does not save it.</p>
               </div>
             ) : draft ? (
               <div className="space-y-4">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
                   AI can make mistakes. Review every field before recording the transaction.
+                  {!draft.type && <p className="mt-1 font-semibold">Choose income or expense; the direction was unclear.</p>}
+                  {!draft.date && <p className="mt-1 font-semibold">Select the transaction date; it was not readable.</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -212,7 +215,7 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
                 </div>
                 <WalletSelector value={walletId} onChange={setWalletId} label={draft.type === "income" ? "Account receiving funds" : "Account charged"} />
 
-                <button type="button" onClick={() => void saveTransaction()} disabled={saving || !walletId || !draft.description.trim() || Number(draft.amount) <= 0} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 py-3 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" onClick={() => void saveTransaction()} disabled={saving || !draft.type || !draft.date || !walletId || !draft.description.trim() || !Number.isFinite(Number(draft.amount)) || Number(draft.amount) <= 0} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 py-3 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
                   {saving ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ScanLine className="h-4 w-4" aria-hidden="true" />}
                   {saving ? "Recording…" : "Review complete — record transaction"}
                 </button>

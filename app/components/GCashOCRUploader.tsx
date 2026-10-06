@@ -8,7 +8,8 @@ import WalletSelector from "@/app/components/WalletSelector";
 interface ParsedTransaction {
   amount: number;
   description: string;
-  date: string;
+  date: string | null;
+  transactionType: 'EXPENSE' | 'INCOME' | null;
   category?: string;
 }
 
@@ -35,7 +36,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
   }
 
   function processFile(file: File) {
-    if (!file.type.startsWith("image/")) {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setError("Please upload an image file (PNG, JPG).");
       return;
     }
@@ -72,13 +73,13 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
   }
 
   async function confirmLog() {
-    if (!parsed || !walletId) return;
+    if (!parsed || !walletId || !parsed.date || !parsed.transactionType) return;
     setLogging(true);
     try {
       await apiClient.post("/transactions", {
         description: parsed.description,
-        type: "EXPENSE",
-        category: parsed.category || "Others",
+        type: parsed.transactionType,
+        category: parsed.category || (parsed.transactionType === 'INCOME' ? 'Other Income' : 'Others'),
         amount: parsed.amount,
         date: parsed.date,
         walletId,
@@ -103,6 +104,8 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
           AI OCR
         </span>
       </div>
+
+      <p className="mb-4 text-xs text-gray-600">Scanning sends the image to Google Gemini. Crop account numbers and unrelated personal details first, or enter the transaction manually. Casha-Ba does not save the image; provider processing follows its service terms.</p>
 
       {success && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold px-4 py-3 rounded-xl mb-4">
@@ -167,7 +170,15 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
               </div>
             ) : parsed ? (
               <div className="space-y-3">
-                <WalletSelector value={walletId} onChange={setWalletId} label="Account charged" />
+                <p className="text-xs text-amber-800">Review every field. Select a date and direction if they could not be extracted.</p>
+                <label className="block text-xs">Direction
+                  <select value={parsed.transactionType || ''} onChange={event => setParsed({ ...parsed, transactionType: event.target.value as 'EXPENSE' | 'INCOME' })} className="field-input">
+                    <option value="" disabled>Choose income or expense</option><option value="EXPENSE">Expense</option><option value="INCOME">Income</option>
+                  </select>
+                </label>
+                <label className="block text-xs">Date<input type="date" value={parsed.date || ''} onChange={event => setParsed({ ...parsed, date: event.target.value })} className="field-input" /></label>
+                <label className="block text-xs">Description<input value={parsed.description} maxLength={200} onChange={event => setParsed({ ...parsed, description: event.target.value })} className="field-input" /></label>
+                <WalletSelector value={walletId} onChange={setWalletId} label={parsed.transactionType === 'INCOME' ? 'Account receiving funds' : 'Account charged'} />
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
                   <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Detected Transaction</p>
                   <div className="space-y-1 text-xs">
@@ -191,7 +202,7 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
                 </div>
                 <button
                   onClick={confirmLog}
-                  disabled={logging || !walletId}
+                  disabled={logging || !walletId || !parsed.date || !parsed.transactionType || !parsed.description.trim()}
                   className="w-full bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white text-xs font-bold py-2.5 rounded-xl transition"
                 >
                   {logging ? "Logging..." : "✅ Confirm & Log Transaction"}

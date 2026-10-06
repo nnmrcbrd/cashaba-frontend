@@ -49,7 +49,7 @@ export default function OnboardingIncomePage() {
     <OnboardingShell
       step={2}
       title="Set your income baseline"
-      description="Enter the amount available in one income period. Casha-Ba uses this value as the starting point for Safe-to-Spend."
+      description="Enter your expected income and choose a planning period. Safe-to-Spend uses income you record as received, after subtracting commitments and spending."
       asideTitle="Give every peso a realistic starting point."
       asideDescription="Choose the period that matches how you normally receive or plan your income. Calculations will follow that period."
       onBack={() => router.push(ROUTES.ONBOARDING_ROLE)}

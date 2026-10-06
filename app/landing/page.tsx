@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import {
-  ArrowRight,
   Banknote,
   Bot,
   Check,
@@ -16,7 +15,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { ROUTES } from "@/constants";
+import LandingAuthActions, { LandingAccountLink } from "./LandingAuthActions";
 import LandingExperience from "./LandingExperience";
 import ThemeToggle from "./ThemeToggle";
 
@@ -85,8 +84,7 @@ export default function LandingPage() {
             </nav>
             <div className="flex items-center gap-1 sm:gap-3">
               <ThemeToggle />
-              <Link href={ROUTES.LOGIN} className="rounded-full px-3 py-2 text-sm font-semibold text-[#20382f] transition hover:bg-[#e5ebe5] active:scale-[0.98] dark:text-[#dce8e1] dark:hover:bg-white/10 sm:px-4">Sign in</Link>
-              <Link href={ROUTES.SIGNUP} className="whitespace-nowrap rounded-full bg-[#17694d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10583f] active:scale-[0.98] sm:px-5">Create account</Link>
+              <LandingAuthActions />
             </div>
           </div>
       </header>
@@ -104,9 +102,7 @@ export default function LandingPage() {
                 Casha-Ba turns income, bills, savings, and everyday expenses into one clear number before your next decision.
               </p>
               <div data-hero-reveal className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Link href={ROUTES.SIGNUP} className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#17694d] px-6 text-sm font-semibold text-white transition hover:bg-[#10583f] active:scale-[0.98]">
-                  Create account <ArrowRight size={17} strokeWidth={1.75} aria-hidden="true" />
-                </Link>
+                <LandingAccountLink arrow className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#17694d] px-6 text-sm font-semibold text-white transition hover:bg-[#10583f] active:scale-[0.98]" />
                 <a href="#how-it-works" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full border border-[#173d31]/20 bg-transparent px-6 text-sm font-semibold text-[#173d31] transition hover:border-[#17694d] hover:text-[#17694d] active:scale-[0.98] dark:border-white/20 dark:text-[#ecf4ef] dark:hover:border-[#8dd2b2] dark:hover:text-[#8dd2b2]">
                   See how it works
                 </a>
@@ -267,7 +263,7 @@ export default function LandingPage() {
               <div className="mt-8 space-y-4 text-sm leading-6 text-[#425a50] dark:text-[#c0cec7]">
                 {["Wallets, transactions, transfers, and search", "Safe-to-Spend, budgets, goals, and debts", "CSV import and financial reports", "10 AI coach requests each month", "5 receipt or GCash scans each month"].map((item) => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-[#17694d] dark:text-[#8dd2b2]" size={17} aria-hidden="true" />{item}</p>)}
               </div>
-              <Link href={ROUTES.SIGNUP} className="mt-10 inline-flex h-12 items-center justify-center rounded-full border border-[#17694d] px-6 text-sm font-semibold text-[#17694d] transition hover:bg-[#17694d] hover:text-white dark:border-[#8dd2b2] dark:text-[#8dd2b2]">Create free account</Link>
+              <LandingAccountLink guestLabel="Create free account" className="mt-10 inline-flex h-12 items-center justify-center rounded-full border border-[#17694d] px-6 text-sm font-semibold text-[#17694d] transition hover:bg-[#17694d] hover:text-white dark:border-[#8dd2b2] dark:text-[#8dd2b2]" />
             </article>
 
             <article className="relative flex flex-col overflow-hidden rounded-[1.75rem] bg-[#073f30] p-7 text-white shadow-[0_28px_70px_rgba(7,63,48,0.18)] sm:p-9">
@@ -279,7 +275,7 @@ export default function LandingPage() {
                 <div className="mt-8 space-y-4 text-sm leading-6 text-emerald-50">
                   {["Everything included in Free", "200 AI coach requests each month", "100 receipt or GCash scans each month", "Personalized AI financial insight cards", "Usage dashboard and period tracking"].map((item) => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-emerald-300" size={17} aria-hidden="true" />{item}</p>)}
                 </div>
-                <Link href={ROUTES.SIGNUP} className="mt-10 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-300 px-6 text-sm font-extrabold text-[#073f30] transition hover:bg-emerald-200">Create account to try Plus <ArrowRight size={17} aria-hidden="true" /></Link>
+                <LandingAccountLink arrow guestLabel="Create account to try Plus" className="mt-10 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-300 px-6 text-sm font-extrabold text-[#073f30] transition hover:bg-emerald-200" />
                 <p className="mt-4 text-xs leading-5 text-emerald-100/60">Plus activation currently uses the capstone test flow. Live payment collection requires production PayMongo activation.</p>
               </div>
             </article>
@@ -292,7 +288,7 @@ export default function LandingPage() {
           <h2 className="max-w-5xl text-5xl font-semibold leading-[0.98] tracking-[-0.06em] sm:text-6xl lg:text-8xl">Make the next money decision with context.</h2>
           <div className="mt-10 flex flex-col items-start justify-between gap-7 border-t border-white/20 pt-7 sm:flex-row sm:items-center">
             <p className="max-w-xl text-base leading-7 text-[#d8ebe1]">Create an account, complete the guided setup, and let your own records build the picture.</p>
-            <Link href={ROUTES.SIGNUP} className="inline-flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#f5f7f2] px-6 text-sm font-semibold text-[#123e30] transition hover:bg-white active:scale-[0.98]">Create account <ArrowRight size={17} strokeWidth={1.75} aria-hidden="true" /></Link>
+            <LandingAccountLink arrow className="inline-flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#f5f7f2] px-6 text-sm font-semibold text-[#123e30] transition hover:bg-white active:scale-[0.98]" />
           </div>
         </div>
       </section>
@@ -300,7 +296,7 @@ export default function LandingPage() {
       <footer className="bg-[#0d1713] px-5 py-12 text-[#c1cec7] sm:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-[1fr_auto] md:items-end">
           <div><BrandMark /><p className="mt-5 max-w-md text-sm leading-6 text-[#879a90]">A personal-finance capstone system for clearer spending, saving, and planning decisions.</p></div>
-          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm"><Link href={ROUTES.LOGIN} className="hover:text-white">Sign in</Link><Link href={ROUTES.SIGNUP} className="hover:text-white">Create account</Link><a href="#features" className="hover:text-white">Features</a><a href="#questions" className="hover:text-white">Questions</a></div>
+          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm"><LandingAuthActions variant="footer" /><a href="#features" className="hover:text-white">Features</a><a href="#questions" className="hover:text-white">Questions</a></div>
         </div>
         <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#71847a] sm:flex-row sm:items-center sm:justify-between"><p>© 2026 Casha-Ba</p><p>Capstone development build. Demo data recommended.</p></div>
       </footer>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertCircle, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/context/Authcontext";
 import PasswordInput from "./PasswordInput";
+import { EmailOtpForm } from "./EmailOtpForm";
 
 export default function SignupForm() {
   const { signup, signupError } = useAuth();
@@ -16,7 +17,7 @@ export default function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [registered, setRegistered] = useState(false);
+  const [verification, setVerification] = useState<{ email: string; challengeId: string } | null>(null);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const passwordChecks = {
@@ -44,10 +45,10 @@ export default function SignupForm() {
     setLoading(true);
     const successful = await signup(firstName.trim(), lastName.trim(), email.trim(), password, gender);
     setLoading(false);
-    if (successful) setRegistered(true);
+    if (successful) setVerification(successful);
   }
 
-  if (registered) return <div role="status" className="space-y-4 rounded-xl bg-emerald-50 p-5 text-sm text-emerald-900"><p>Check your email for a verification link, then sign in.</p><p>If the email does not arrive, use <a href="/forgot-password" className="underline">password recovery</a> to verify your address and choose a new password.</p><a href="/login" className="font-bold underline">Back to sign in</a></div>;
+  if (verification) return <EmailOtpForm purpose="verification" initialEmail={verification.email} initialChallengeId={verification.challengeId} />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>

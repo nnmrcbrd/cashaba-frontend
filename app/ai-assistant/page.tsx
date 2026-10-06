@@ -12,6 +12,8 @@ export default function AIAssistantPage() {
   const [loading, setLoading] = useState(false);
   const [requiresConfirmation, setRequiresConfirmation] = useState(false);
   const [confirmationId, setConfirmationId] = useState<string | null>(null);
+  const [clarificationId, setClarificationId] = useState<string | null>(null);
+  const [walletOptions, setWalletOptions] = useState<string[]>([]);
   const [assistantEngine, setAssistantEngine] = useState<"gemini" | "fallback" | "unknown">("unknown");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +42,11 @@ export default function AIAssistantPage() {
             });
           });
           setMessages(loaded);
-          setRequiresConfirmation(res.data.at(-1)?.state === "AWAITING_CONFIRMATION");
-          setConfirmationId(res.data.at(-1)?.state === "AWAITING_CONFIRMATION" ? res.data.at(-1).id : null);
+          const pending = res.data.filter((item: AiHistoryItem) => ["AWAITING_CONFIRMATION", "NEEDS_CLARIFICATION"].includes(item.state || "")).at(-1);
+          setRequiresConfirmation(pending?.state === "AWAITING_CONFIRMATION");
+          setConfirmationId(pending?.state === "AWAITING_CONFIRMATION" ? pending.id : null);
+          setClarificationId(pending?.state === "NEEDS_CLARIFICATION" ? pending.id : null);
+          setWalletOptions(pending?.walletOptions || []);
           const latestModel = res.data.at(-1)?.model;
           setAssistantEngine(typeof latestModel === "string" && latestModel.startsWith("gemini-") ? "gemini" : latestModel ? "fallback" : "unknown");
         } else {
@@ -50,7 +55,7 @@ export default function AIAssistantPage() {
             {
               id: "welcome",
               role: "assistant",
-              content: "👋 Hello! I am your CASHA-BA AI Assistant.\nTry asking me to log expenses, record savings, log debts, or view your Safe-to-Spend summary!",
+              content: "Hi! Ask me about your finances, plan a purchase, or ask how to use Casha-Ba.\n\nYou can reply naturally—‘I don’t get it’, ‘why?’, or ‘what should I do next?’—and I’ll continue the same topic. I’ll ask for any missing details. Changes to financial records need your confirmation.",
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             }
           ]);
@@ -80,9 +85,9 @@ export default function AIAssistantPage() {
     setLoading(true);
 
     try {
-      const res = await apiClient.post("/ai/chat", { message: text, confirmationId });
+      const res = await apiClient.post("/ai/chat", { message: text, confirmationId, clarificationId });
       const replyMsg: ChatMessage = {
-        id: res.data.id || crypto.randomUUID(),
+        id: crypto.randomUUID(),
         role: "assistant",
         content: res.data.content,
         timestamp: currentTime,
@@ -90,6 +95,8 @@ export default function AIAssistantPage() {
       setMessages((prev) => [...prev, replyMsg]);
       setRequiresConfirmation(Boolean(res.data.requiresConfirmation));
       setConfirmationId(res.data.requiresConfirmation ? res.data.id : null);
+      setClarificationId(res.data.requiresClarification ? res.data.id : null);
+      setWalletOptions(res.data.walletOptions || []);
       if (typeof res.data.model === "string") setAssistantEngine(res.data.model.startsWith("gemini-") ? "gemini" : "fallback");
     } catch (err) {
       console.error("AI Error:", err);
@@ -130,6 +137,7 @@ export default function AIAssistantPage() {
         </div>
 
         {/* Main Content Area */}
+        <p className="mb-4 text-xs text-gray-600">Requests handled by Gemini include your message, recent conversation and a minimized financial summary. Account and goal names are replaced where possible; avoid sharing account numbers or sensitive personal details. Savings calculations use your records and the planning amounts you provide. Review financial actions before confirming.</p>
         <div className="grid min-w-0 flex-1 grid-cols-1 items-start gap-6 lg:grid-cols-4">
           {/* Chat Window */}
           <div className="flex h-[70vh] min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:col-span-3 lg:h-[calc(100vh-180px)]">
@@ -140,12 +148,12 @@ export default function AIAssistantPage() {
                   <div key={m.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                     {isUser ? (
                       <div className="bg-[#48a478] text-white px-5 py-3 rounded-2xl max-w-md shadow-sm text-xs font-medium flex items-end gap-3">
-                        <span>{m.content}</span>
+                        <span className="min-w-0 whitespace-pre-wrap break-words">{m.content}</span>
                         <span className="text-[10px] text-white/80 shrink-0">{m.timestamp}</span>
                       </div>
                     ) : (
-                      <div className="bg-[#f0f4f1] text-gray-800 p-5 rounded-2xl max-w-md shadow-sm border border-gray-200/60 text-xs">
-                        <div className="whitespace-pre-line font-medium leading-relaxed">
+                      <div className="bg-[#f0f4f1] text-gray-800 p-5 rounded-2xl w-fit max-w-[min(100%,36rem)] shadow-sm border border-gray-200/60 text-sm">
+                        <div className="whitespace-pre-line break-words font-medium leading-relaxed">
                           {m.content}
                         </div>
                         <div className="text-[10px] text-gray-400 mt-2 text-right">{m.timestamp}</div>
@@ -157,7 +165,7 @@ export default function AIAssistantPage() {
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-[#f0f4f1] text-gray-500 p-4 rounded-2xl text-xs italic animate-pulse">
-                    AI is analyzing your command...
+                    Working on your question...
                   </div>
                 </div>
               )}
@@ -165,17 +173,25 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Input Footer */}
+            {clarificationId && !loading && <div className="flex flex-wrap items-center gap-2 border-t border-emerald-100 bg-emerald-50 px-4 py-3">
+              {walletOptions.length > 0 && <span className="text-xs text-gray-600">Use account:</span>}
+              {walletOptions.map(name => <button key={name} type="button" onClick={() => sendMessage(name)} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">{name}</button>)}
+              <button type="button" onClick={() => sendMessage("cancel")} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700">Cancel request</button>
+            </div>}
             {requiresConfirmation && !loading && <div className="flex gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3"><button type="button" onClick={() => sendMessage("confirm")} className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Confirm and save</button><button type="button" onClick={() => sendMessage("cancel")} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700">Cancel</button></div>}
             <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-200 flex gap-3">
               <input
+                aria-label="Message the AI assistant"
+                maxLength={1000}
                 className="min-w-0 flex-1 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Ask AI or log expense (e.g. Spent 150 on groceries)..."
+                placeholder="Ask about your finances, a savings plan, or how to use Casha-Ba..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
               />
               <button
                 type="submit"
-                disabled={loading}
+                aria-label="Send message"
+                disabled={loading || !input.trim()}
                 className="shrink-0 bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white px-5 py-3 rounded-xl text-xs font-semibold flex items-center justify-center transition"
               >
                 ➢
@@ -186,10 +202,13 @@ export default function AIAssistantPage() {
           {/* Right Info Panel */}
           <div className="bg-[#f4f7f5] p-6 rounded-2xl border border-gray-200 shadow-sm text-xs space-y-6">
             <div>
-              <h3 className="font-bold text-gray-900 text-sm mb-1">Command Examples</h3>
+              <h3 className="font-bold text-gray-900 text-sm mb-1">Questions &amp; Actions</h3>
               <p className="text-gray-500 text-[11px] mb-4">Click any example to fill in prompt:</p>
 
               <div className="space-y-3">
+                <button type="button" onClick={() => fillPrompt("Explain that in simpler terms")} className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"><p className="font-bold text-emerald-700">Explain Simply</p><p className="text-gray-500 text-[11px]">Continue the last topic with a shorter explanation.</p></button>
+                <button type="button" onClick={() => fillPrompt("How do I set up a savings goal in Casha-Ba?")} className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"><p className="font-bold text-emerald-700">How to Use Casha-Ba</p><p className="text-gray-500 text-[11px]">Ask for steps using the system’s features.</p></button>
+                <button type="button" onClick={() => fillPrompt("How many months will it take to buy a phone?")} className="w-full text-left p-2.5 rounded-xl bg-white border border-gray-200 hover:border-emerald-500 transition"><p className="font-bold text-emerald-700">Savings Timeline</p><p className="text-gray-500 text-[11px]">Uses your saved goal, or asks for the price and monthly savings. Reply directly to continue the plan.</p></button>
                 <button
                   type="button"
                   onClick={() => fillPrompt("Give me my daily financial brief")}
@@ -274,4 +293,5 @@ interface AiHistoryItem {
   createdAt: string;
   state?: string;
   model?: string;
+  walletOptions?: string[];
 }

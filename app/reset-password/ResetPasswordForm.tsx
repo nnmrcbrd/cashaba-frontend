@@ -20,7 +20,7 @@ export default function ResetPasswordForm({ token }: { token: string }) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!token) {
-      setError("This reset link is incomplete. Request a new link.");
+      setError("Verify a new email code before resetting your password.");
       return;
     }
     if (!validPassword) {
@@ -73,7 +73,7 @@ export default function ResetPasswordForm({ token }: { token: string }) {
           <button type="submit" disabled={loading} className="h-12 w-full rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white hover:bg-[#084f3b] disabled:opacity-60">
             {loading ? "Updating password..." : "Reset password"}
           </button>
-          <Link href={ROUTES.FORGOT_PASSWORD} className="block text-center text-sm font-semibold text-slate-500 hover:text-[#0b6b4f]">Request a new link</Link>
+          <Link href={ROUTES.FORGOT_PASSWORD} className="block text-center text-sm font-semibold text-slate-500 hover:text-[#0b6b4f]">Request a new code</Link>
         </form>
       )}
     </AuthShell>

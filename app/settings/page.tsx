@@ -9,6 +9,7 @@ import { ROUTES } from "@/constants/index";
 import { incomeSetupService } from "@/services/incomeSetupService";
 import apiClient from "@/lib/apiClient";
 import axios from "axios";
+import { subscriptionService, type SubscriptionSummary } from "@/services/subscriptionService";
 
 const TABS = ["Profile", "Income", "Preferences", "Security"] as const;
 const ROLE_OPTIONS = ["Student", "Freelance", "Working", "Married"] as const;
@@ -54,6 +55,20 @@ function prepareProfilePhoto(file: File): Promise<string> {
 export default function SettingsPage() {
   const { user, refreshUser, logout } = useAuth();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Profile");
+  const [subscription, setSubscription] = useState<SubscriptionSummary | null>(null);
+  const [planError, setPlanError] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadPlan = () => {
+      void subscriptionService.getMine().then((summary) => {
+        if (mounted) { setSubscription(summary); setPlanError(false); }
+      }).catch(() => { if (mounted) setPlanError(true); });
+    };
+    loadPlan();
+    window.addEventListener("focus", loadPlan);
+    return () => { mounted = false; window.removeEventListener("focus", loadPlan); };
+  }, []);
 
   // Profile Form state matching Figma fields
   const [fullName, setFullName] = useState(user?.name ?? "");
@@ -183,7 +198,7 @@ export default function SettingsPage() {
       setIncomeLoading(true);
       setIncomeMsg("");
       await incomeSetupService.saveIncomeSetup(Number(income), period);
-      setIncomeMsg("Income baseline updated!");
+      setIncomeMsg("Income plan updated!");
       setTimeout(() => setIncomeMsg(""), 3000);
     } catch (err) {
       console.error("Failed to save income setup", err);
@@ -441,7 +456,9 @@ export default function SettingsPage() {
                     <span>👤</span>
                     <span>Access</span>
                   </div>
-                  <span className="font-semibold text-gray-900">Standard access</span>
+                  <Link href={ROUTES.SUBSCRIPTION} className="font-semibold text-emerald-700 hover:underline">
+                    {planError ? "View plan" : subscription ? subscription.plan === "PLUS" ? "Casha-Ba Plus" : "Free" : "Loading plan…"}
+                  </Link>
                 </div>
 
                 <div className="flex items-center justify-between py-3">
@@ -463,7 +480,7 @@ export default function SettingsPage() {
         {tab === "Income" && (
           <div className="bg-white rounded-3xl border border-gray-200/90 p-8 shadow-sm max-w-xl">
             <h2 className="text-base font-bold text-[#186849] mb-1">Income & Allowance Setup</h2>
-            <p className="text-xs text-gray-400 mb-6">Manage total income and allocation period for Safe-to-Spend calculations.</p>
+            <p className="text-xs text-gray-400 mb-6">Manage expected income and the planning period. Safe-to-Spend uses only income recorded as received.</p>
 
             <form onSubmit={handleSaveIncome} className="space-y-5">
               <div>
@@ -514,7 +531,7 @@ export default function SettingsPage() {
                 disabled={incomeLoading}
                 className="bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white text-xs font-semibold px-6 py-2.5 rounded-lg shadow-sm transition"
               >
-                {incomeLoading ? "Saving..." : "Save Income Baseline"}
+                {incomeLoading ? "Saving..." : "Save Income Plan"}
               </button>
             </form>
           </div>
@@ -584,7 +601,7 @@ export default function SettingsPage() {
               </Link>
             </div>
             <div className="p-4 rounded-xl border border-gray-200 space-y-3 text-xs">
-              <div><p className="font-bold text-gray-900">Your data and privacy</p><p className="mt-1 text-[11px] text-gray-500">Casha-ba uses only the information you enter manually. It does not connect to banks or e-wallet providers.</p></div>
+              <div><p className="font-bold text-gray-900">Your data and privacy</p><p className="mt-1 text-[11px] text-gray-500">Casha-ba stores the records you enter or import. AI assistance sends your message and a minimized financial summary to Google Gemini; receipt scanning sends the selected image. Avoid sharing account numbers and unrelated personal details. Casha-ba does not save scanner images. Provider processing follows its service terms. Subscription checkout uses PayMongo; financial records do not connect to bank or e-wallet balances.</p></div>
               <button type="button" onClick={handleExportData} className="rounded-lg border border-emerald-600 px-4 py-2 font-semibold text-emerald-700">Download my data (Excel)</button>
               <div className="border-t border-gray-100 pt-3 space-y-2">
                 <p className="font-bold text-red-700">Permanently delete account</p>

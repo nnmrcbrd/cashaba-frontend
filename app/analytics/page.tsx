@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/ui/sidebar";
+import IncomeExpenseChart from "../components/IncomeExpenseChart";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/context/Authcontext";
 import { exportFinancialReport } from "@/lib/pdfExport";
@@ -18,7 +19,7 @@ interface AnalyticsResponse {
   budget: { configured: boolean; target: number; spent: number; remaining: number; percentage: number };
   savings: { saved: number; target: number; percentage: number; goals: number };
   comparison: { previousExpenses: number; expenseChangePct: number | null };
-  forecast: { projectedExpenses: number; projectedBalance: number };
+  forecast: { projectedExpenses: number; projectedBalance: number; plannedProjectedBalance?: number; method?: string; incomeBasis?: string; sparseData?: boolean };
   review: {
     status: { label: string; detail: string; tone: "positive" | "warning" | "critical" | "neutral" };
     strongestArea: string;
@@ -51,9 +52,6 @@ export default function AnalyticsPage() {
     return () => window.clearTimeout(timer);
   }, [period, startDate, endDate]);
 
-  const trend = data?.trend || [];
-  const trendMax = Math.max(1, ...trend.flatMap((point) => [point.income, point.expense]));
-  const points = (key: "income" | "expense") => trend.map((point, index) => `${trend.length <= 1 ? 250 : 40 + (index * 430) / (trend.length - 1)},${135 - (point[key] / trendMax) * 110}`).join(" ");
   const donut = useMemo(() => {
     const categories = data?.categories || [];
     return categories.map((category, index) => ({ ...category, color: palette[index % palette.length], offset: -categories.slice(0, index).reduce((sum, item) => sum + item.percentage, 0) }));
@@ -82,7 +80,8 @@ export default function AnalyticsPage() {
     {error && <p className="rounded-xl bg-red-50 p-4 text-xs text-red-700">{error}</p>}
     {exportNotice && <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{exportNotice}</p>}
     {loading || !data ? <p className="py-16 text-center text-xs text-gray-400">Generating consistent period analytics…</p> : <>
-      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><Metric label="Income received" value={data.summary.totalIncome} detail={data.summary.totalIncome ? "Recorded in this period" : `Configured plan ₱${data.summary.configuredIncome.toLocaleString()}`} tone="emerald" /><Metric label="Loan principal collected" value={data.summary.loanCollections} detail="Cash returned from money you lent; excluded from income" tone="blue" /><Metric label="Spending & debt payments" value={data.summary.totalExpenses} detail={`${data.summary.expenseCount} spending movement${data.summary.expenseCount === 1 ? "" : "s"}`} tone="red" /><Metric label="Operating balance" value={data.summary.netCashFlow} detail="Income minus spending and debt payments; principal transfers excluded" tone={data.summary.netCashFlow < 0 ? "red" : "blue"} /><Metric label="Projected spending" value={data.forecast.projectedExpenses} detail={`Projected operating balance ₱${data.forecast.projectedBalance.toLocaleString()}`} tone="amber" /></section>
+      <p className="mb-4 text-xs text-slate-600">Reporting uses Asia/Manila calendar days. Forecasts linearly extend recorded spending and use received income; planned income is shown separately. Early bills can distort the projection.{typeof data.forecast.plannedProjectedBalance === "number" && <span> Using configured income, the planned remaining balance is ₱{data.forecast.plannedProjectedBalance.toLocaleString()}.</span>}{data.forecast.sparseData && " Limited history: treat this estimate cautiously."}</p>
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><Metric label="Income received" value={data.summary.totalIncome} detail={`Recorded this period. Configured plan ₱${data.summary.configuredIncome.toLocaleString()}`} tone="emerald" /><Metric label="Loan principal collected" value={data.summary.loanCollections} detail="Cash returned from money you lent; excluded from income" tone="blue" /><Metric label="Spending & debt payments" value={data.summary.totalExpenses} detail={`${data.summary.expenseCount} spending movement${data.summary.expenseCount === 1 ? "" : "s"}`} tone="red" /><Metric label="Operating balance" value={data.summary.netCashFlow} detail="Income minus spending and debt payments; principal transfers excluded" tone={data.summary.netCashFlow < 0 ? "red" : "blue"} /><Metric label="Projected spending" value={data.forecast.projectedExpenses} detail={`Projected operating balance ₱${data.forecast.projectedBalance.toLocaleString()}`} tone="amber" /></section>
       <section className="mb-6 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm" aria-labelledby="financial-review-summary">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div><h2 id="financial-review-summary" className="text-base font-extrabold text-slate-950">Financial Review Summary</h2><p className="mt-1 text-xs text-slate-500">A concise interpretation of the selected period. Recommendations are based only on your recorded data.</p></div>
@@ -96,7 +95,7 @@ export default function AnalyticsPage() {
         </div>
       </section>
       <section className="mb-6 grid gap-6 lg:grid-cols-2">
-        <article className="rounded-2xl border border-gray-200 bg-white p-6"><h2 className="text-sm font-bold">Income versus expenses</h2><div className="mt-5 h-56"><svg viewBox="0 0 500 160" className="h-full w-full">{[25, 60, 95, 130].map((y) => <line key={y} x1="35" y1={y} x2="480" y2={y} stroke="#eef2f1" />)}<polyline points={points("income")} fill="none" stroke="#059669" strokeWidth="3" /><polyline points={points("expense")} fill="none" stroke="#dc2626" strokeWidth="3" />{trend.map((point, index) => { const x = trend.length <= 1 ? 250 : 40 + (index * 430) / (trend.length - 1); return <g key={`points-${point.date}`}><circle cx={x} cy={135 - (point.income / trendMax) * 110} r="4" fill="#059669" /><circle cx={x} cy={135 - (point.expense / trendMax) * 110} r="4" fill="#dc2626" /></g>; })}{trend.map((point, index) => <text key={point.date} x={trend.length <= 1 ? 250 : 40 + (index * 430) / (trend.length - 1)} y="153" textAnchor="middle" fontSize="8" fill="#64748b">{new Date(`${point.date}T12:00:00`).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</text>)}</svg></div><div className="flex gap-4 text-[10px] font-bold"><span className="text-emerald-700">● Income</span><span className="text-red-600">● Spending &amp; debt payments</span></div></article>
+        <IncomeExpenseChart trend={data.trend} start={data.period.start} end={data.period.end} income={data.summary.totalIncome} expense={data.summary.totalExpenses} />
         <article className="rounded-2xl border border-gray-200 bg-white p-6"><h2 className="text-sm font-bold">Spending by category</h2><div className="mt-4 grid grid-cols-2 items-center gap-4"><div className="relative"><svg viewBox="0 0 100 100" className="w-full -rotate-90">{donut.map((item) => <circle key={item.name} cx="50" cy="50" r="35" fill="transparent" stroke={item.color} strokeWidth="12" strokeDasharray={`${item.percentage} ${100 - item.percentage}`} strokeDashoffset={item.offset} pathLength="100" />)}</svg></div><div className="space-y-2">{donut.map((item) => <div key={item.name} className="flex justify-between gap-2 text-[10px]"><span><i className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: item.color }} />{item.name}</span><strong>{item.percentage}%</strong></div>)}</div></div></article>
       </section>
       <section className="mb-6 grid gap-4 md:grid-cols-3"><ProgressCard title="Budget usage" value={data.budget.percentage} amount={`${format(data.budget.spent)} of ${format(data.budget.target)}`} warning={data.budget.percentage >= 80} /><ProgressCard title="Savings progress" value={data.savings.percentage} amount={`${format(data.savings.saved)} of ${format(data.savings.target)}`} /><article className="rounded-2xl border border-gray-200 bg-white p-5"><p className="text-xs font-bold">Period comparison</p><p className={`mt-3 text-2xl font-extrabold ${data.comparison.expenseChangePct !== null && data.comparison.expenseChangePct > 0 ? "text-red-600" : "text-emerald-700"}`}>{data.comparison.expenseChangePct === null ? "New" : `${data.comparison.expenseChangePct > 0 ? "+" : ""}${data.comparison.expenseChangePct}%`}</p><p className="mt-1 text-[10px] text-gray-500">versus the previous equivalent period</p></article></section>

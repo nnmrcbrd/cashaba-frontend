@@ -18,7 +18,7 @@ interface AuthContextValue {
   token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User | null>;
-  signup: (firstName: string, lastName: string, email: string, password: string, gender: string) => Promise<boolean>;
+  signup: (firstName: string, lastName: string, email: string, password: string, gender: string) => Promise<{ email: string; challengeId: string } | null>;
   refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
   loginError: string | null;
@@ -128,8 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("casha_last_activity", String(Date.now()));
       return mappedUser;
     } catch (error) {
-      const message = axios.isAxiosError<{ message?: string }>(error)
-        ? error.response?.data?.message
+      const message = axios.isAxiosError<{ message?: string; errors?: Array<{ message?: string }> }>(error)
+        ? error.response?.data?.message || error.response?.data?.errors?.[0]?.message
         : null;
       setLoginError(message || "Unable to log in. Please try again.");
       return null;
@@ -159,15 +159,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (res.status === 201) {
-        return true;
+        // Registration never starts a session. Detect an older auto-login API
+        // instead of continuing onboarding under an unintended account.
+        if (res.data.accessToken || res.data.refreshToken || typeof res.data.challengeId !== 'string') {
+          setSignupError('The running server uses an outdated registration flow. Restart it with the current code; email verification is required before signing in.');
+          return null;
+        }
+        setApiAccessToken(null);
+        setToken(null);
+        setUser(null);
+        window.localStorage.removeItem('casha_last_activity');
+        return { email, challengeId: res.data.challengeId };
       }
-      return false;
+      return null;
     } catch (error) {
-      const message = axios.isAxiosError<{ message?: string }>(error)
-        ? error.response?.data?.message
+      const message = axios.isAxiosError<{ message?: string; errors?: Array<{ message?: string }> }>(error)
+        ? error.response?.data?.message || error.response?.data?.errors?.[0]?.message
         : null;
       setSignupError(message || "Unable to create your account. Please try again.");
-      return false;
+      return null;
     }
   }
 

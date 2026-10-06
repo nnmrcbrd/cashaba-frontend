@@ -415,6 +415,10 @@
   outline: none;
 }
 
+.filter-input--with-icon {
+  padding-inline-start: 2.25rem;
+}
+
 .filter-input:focus,
 .field-input:focus,
 .modal-input:focus {

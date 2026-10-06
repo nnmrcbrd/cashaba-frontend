@@ -5,7 +5,7 @@ import SocialButtons from "@/app/components/auth/SocialButtons";
 
 export default function SignupPage() {
   return (
-    <AuthShell eyebrow="Secure registration" title="Create your account" description="Start with identity details, then complete your financial setup.">
+    <AuthShell eyebrow="Secure registration" title="Create your account" description="Create your account, verify your email, then sign in to complete your financial setup.">
       <AuthSwitcher active="signup" />
       <SocialButtons />
       <SignupForm />

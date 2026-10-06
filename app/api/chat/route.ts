@@ -6,7 +6,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Authentication required" }, { status: 401 });
   }
 
-  const body = await req.json();
+  let body;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ message: 'A valid JSON request is required' }, { status: 400 }); }
+  if (!body || typeof body !== 'object') return NextResponse.json({ message: 'A valid chat request is required' }, { status: 400 });
   const message = typeof body.message === "string"
     ? body.message
     : Array.isArray(body.messages)
@@ -24,7 +27,7 @@ export async function POST(req: NextRequest) {
       "Content-Type": "application/json",
       Authorization: authorization,
     },
-    body: JSON.stringify({ message: message.trim() }),
+    body: JSON.stringify({ message: message.trim(), confirmationId: body.confirmationId, clarificationId: body.clarificationId }),
     cache: "no-store",
   });
 
