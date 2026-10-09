@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
@@ -15,12 +15,24 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
-  const [notice] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const savedNotice = sessionStorage.getItem("casha_auth_notice") || "";
-    sessionStorage.removeItem("casha_auth_notice");
-    return savedNotice;
-  });
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    // Keep the server and first browser render identical. Consume the notice
+    // after hydration, with cancellation for Strict Mode's effect replay.
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const savedNotice = window.sessionStorage.getItem("casha_auth_notice");
+        if (savedNotice) {
+          setNotice(savedNotice);
+          window.sessionStorage.removeItem("casha_auth_notice");
+        }
+      } catch {
+        // A blocked storage API must not prevent the user from signing in.
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -43,7 +55,7 @@ export default function LoginForm() {
   return (
     <>
       {notice && (
-        <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <div role="status" className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           <CheckCircle2 className="mt-0.5 shrink-0" size={17} />
           {notice}
         </div>

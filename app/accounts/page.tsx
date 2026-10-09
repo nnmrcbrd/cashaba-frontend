@@ -151,7 +151,7 @@ export default function AccountsPage() {
     <div className="flex min-h-screen bg-[#f7f9f8]">
       <Sidebar />
       <main className="app-main">
-        <header className="app-page-header app-page-header--sticky mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200/70 pb-5">
+        <header className="app-page-header mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-gray-200/70 pb-5">
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">Manual tracking</p>
             <h1>Wallet & Accounts</h1>

@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/Authcontext";
-import ThemeToggle from "./ThemeToggle";
+import ThemeMenuRow from "./ThemeMenuRow";
 
 const ADMIN_SIDEBAR_STATE_KEY = "casha_admin_sidebar_collapsed";
 
@@ -70,7 +70,6 @@ export default function AdminSidebar() {
     <>
     <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-emerald-950/10 bg-[#073f30] px-4 text-white lg:hidden">
       <Link href="/admin/manage-users" className="flex items-center gap-2 font-extrabold text-emerald-200"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400 text-[#073f30]"><PhilippinePeso className="h-5 w-5" /></span>Casha-Ba Admin</Link>
-      <ThemeToggle />
     </div>
     <nav aria-label="Mobile admin navigation" className={`fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 grid w-[calc(100%-1.5rem)] max-w-xs -translate-x-1/2 grid-cols-2 items-center rounded-[1.75rem] border border-slate-200 bg-white/95 px-2 py-2 text-slate-600 shadow-[0_14px_45px_rgba(15,23,42,0.22)] backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 lg:hidden ${mobileOpen ? "z-[70]" : "z-40"}`}>
       <Link href="/admin/manage-users" aria-current={manageUsersActive ? "page" : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-semibold ${manageUsersActive ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200" : "hover:bg-slate-100 dark:hover:bg-slate-800"}`}><Users className="h-[19px] w-[19px]" aria-hidden="true" /><span>Users</span></Link>
@@ -113,6 +112,8 @@ export default function AdminSidebar() {
           </button>
           <button type="button" onClick={() => setMobileOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 lg:hidden" aria-label="Close admin navigation menu"><X className="h-5 w-5" /></button>
         </div>
+
+        <ThemeMenuRow />
 
         <nav className="flex flex-col gap-1.5 px-3 py-5 lg:px-4">
           <Link

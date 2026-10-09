@@ -27,20 +27,33 @@ function applyTheme(t: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    const stored = localStorage.getItem("casha_theme");
-    return stored === "dark" || stored === "amoled" ? stored : "light";
-  });
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    // Hydrate with the same state as SSR. The head initializer already applies
+    // the saved colors before paint; restore the React state after hydration.
+    const frame = window.requestAnimationFrame(() => {
+      let restored: Theme = "light";
+      try {
+        const stored = window.localStorage.getItem("casha_theme");
+        if (stored === "dark" || stored === "amoled") restored = stored;
+      } catch {
+        // Theme controls still work when storage is unavailable.
+      }
+      applyTheme(restored);
+      setThemeState(restored);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   function setTheme(t: Theme) {
     applyTheme(t);
     setThemeState(t);
-    localStorage.setItem("casha_theme", t);
+    try {
+      window.localStorage.setItem("casha_theme", t);
+    } catch {
+      // Keep the chosen theme active even if it cannot be persisted.
+    }
   }
 
   return (
@@ -50,7 +63,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         data-app-theme={theme}
         data-theme={theme === "amoled" ? "amoled" : undefined}
         style={{ display: "contents" }}
-        suppressHydrationWarning
       >
         {children}
       </div>

@@ -4,6 +4,7 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { RouteGuard } from "../context/RouteGuard";
 import IdleSessionManager from "./components/auth/IdleSessionManager";
 import PwaRegistration from "./components/PwaRegistration";
+import ThemeInitializationScript from "./components/ThemeInitializationScript";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,19 +19,6 @@ export const viewport: Viewport = {
   themeColor: "#073f30",
 };
 
-const themeInitializationScript = `
-  try {
-    var savedTheme = localStorage.getItem("casha_theme");
-    var root = document.documentElement;
-    if (savedTheme === "dark" || savedTheme === "amoled") {
-      root.classList.add("dark");
-    }
-    if (savedTheme === "amoled") {
-      root.setAttribute("data-theme", "amoled");
-    }
-  } catch (_) {}
-`;
-
 export default function RootLayout({
   children,
 }: {
@@ -39,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
+        <ThemeInitializationScript />
       </head>
       <body>
         <ThemeProvider>

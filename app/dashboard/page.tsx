@@ -52,7 +52,8 @@ export default function DashboardPage() {
   const [safeToSpendBreakdown, setSafeToSpendBreakdown] = useState<SafeToSpendBreakdown | null>(null);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
-  const [loanSummary, setLoanSummary] = useState<LoanSummary>({ totalBorrowed: 0, totalLent: 0, overdueCount: 0, scheduledDue: 0 });
+  const [loanSummary, setLoanSummary] = useState<LoanSummary | null>(null);
+  const [loansLoading, setLoansLoading] = useState(true);
   const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
@@ -70,7 +71,7 @@ export default function DashboardPage() {
           incomeSetupService.getIncomeSetup(),
           incomeSetupService.getSavingsGoals().catch(() => []),
           incomeSetupService.getFixedExpenses().catch(() => []),
-          loanService.getLoans().catch(() => ({ loans: [], summary: { totalBorrowed: 0, totalLent: 0, overdueCount: 0, scheduledDue: 0 } })),
+          loanService.getLoans().catch(() => null),
           apiClient.get("/budget").catch(() => ({ data: null })),
           apiClient.get("/notifications").catch(() => ({ data: { notifications: [] } })),
           walletService.getWallets().catch(() => []),
@@ -81,7 +82,7 @@ export default function DashboardPage() {
         setSafeToSpendBreakdown(setupData.breakdown || null);
         setSavingsGoals(goalsData);
         setFixedExpenses(fixedData);
-        setLoanSummary(loansData.summary);
+        setLoanSummary(loansData?.summary ?? null);
         if (budgetRes?.data) {
           setBudgetData(budgetRes.data);
         }
@@ -89,6 +90,8 @@ export default function DashboardPage() {
         setWallets(walletData);
       } catch (err) {
         console.error("Failed to load dashboard data", err);
+      } finally {
+        setLoansLoading(false);
       }
     }
     loadData();
@@ -119,7 +122,7 @@ export default function DashboardPage() {
   const totalSpent = safeToSpendBreakdown?.totalExpenses ?? transactions
     .filter((t) => ["expense", "bill_payment", "debt_payment"].includes(t.type))
     .reduce((sum, t) => sum + t.amount, 0);
-  const balanceSummary = calculateNetWorth(wallets, loanSummary);
+  const balanceSummary = calculateNetWorth(wallets, loanSummary ?? {});
 
   const incomePeriod = incomeSetup?.incomePeriod || "monthly";
   const plannedWeeklyIncome = Math.round((incomePeriod === "weekly" ? (incomeSetup?.totalIncome ?? 0) : (incomeSetup?.totalIncome ?? 0) / (52 / 12)) * 100) / 100;
@@ -171,13 +174,14 @@ export default function DashboardPage() {
         {/* Smart Spending Alert Banner */}
         <SpendingAlert
           status={!budgetAlertsEnabled || budgetData?.overallStatus === "NOT_CONFIGURED" ? null : budgetData?.overallStatus}
-          notifications={notifications.filter((notification) => !dismissedAlerts.includes(notification.id) && (budgetAlertsEnabled || !notification.id.startsWith("budget-")))}
-          onDismiss={(id) => setDismissedAlerts((prev) => [...prev, id])}
+          notifications={notifications.filter((notification) => budgetAlertsEnabled || !notification.id.startsWith("budget-"))}
+          dismissedIds={dismissedAlerts}
+          onDismiss={(id) => setDismissedAlerts((prev) => prev.includes(id) ? prev : [...prev, id])}
         />
         {/* Recurring Expense Detection */}
         <RecurringDetectionBanner />
 
-        {/* PRIMARY 3-COLUMN HERO METRICS ROW */}
+        {/* PRIMARY DASHBOARD METRICS */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
           {/* 1. SAFE TO SPEND HERO CARD */}
           <button
@@ -249,30 +253,26 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-            <div><p className="text-xs font-bold uppercase tracking-wide text-gray-800">Wallet balances</p><p className="mt-3 text-2xl font-extrabold text-emerald-700">₱{balanceSummary.walletAssets.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p><p className="mt-1 text-xs text-gray-500">Cash in accounts · ₱{balanceSummary.totalLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 })} total owed</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-wide text-gray-800">Wallet balances</p><p className="mt-3 text-2xl font-extrabold text-emerald-700">₱{balanceSummary.walletAssets.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p><p className="mt-1 text-xs text-gray-500">Cash in accounts{loanSummary && <> · ₱{balanceSummary.totalLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 })} total owed</>}</p></div>
             <Link href={ROUTES.ACCOUNTS} className="mt-4 text-xs font-bold text-emerald-700 hover:underline">Manage wallets →</Link>
           </div>
 
-          {/* 3. CASH FLOW SUMMARY CARD */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-            <p className="text-xs font-bold text-gray-800 uppercase tracking-wide mb-3">Cash Flow Overview</p>
-            
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Income received this period</span>
-                <span className="font-bold text-gray-900">₱{userIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Expenses Logged</span>
-                <span className="font-bold text-rose-600">₱{totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-medium">Planned weekly income</span>
-                <span className="font-bold text-blue-600">₱{plannedWeeklyIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
+          {/* OUTSTANDING BORROWED MONEY */}
+          <div className="bg-white p-6 rounded-2xl border border-rose-100 shadow-sm flex flex-col justify-between" aria-busy={loansLoading}>
+            <div>
+              <p className="text-xs font-bold text-gray-800 uppercase tracking-wide">Borrowed Money Owed</p>
+              <p className={`mt-3 text-2xl font-extrabold ${loanSummary?.totalBorrowed ? "text-rose-600" : "text-gray-900"}`}>
+                {loanSummary
+                  ? `₱${loanSummary.totalBorrowed.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : loansLoading ? "Loading…" : "Unavailable"}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                {loanSummary
+                  ? loanSummary.totalBorrowed > 0 ? "Remaining balance after recorded repayments." : "No outstanding borrowed money."
+                  : loansLoading ? "Checking your recorded loans." : "Could not load your loans. Please refresh."}
+              </p>
             </div>
+            <Link href={`${ROUTES.LOANS}?tab=debts`} className="mt-4 text-xs font-bold text-rose-600 hover:underline">View borrowed money →</Link>
           </div>
         </div>
 
@@ -396,9 +396,9 @@ export default function DashboardPage() {
 
         {/* MAIN DASHBOARD CONTENT GRID (2 COLUMNS) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* LEFT 2-COLUMNS: GOALS, DEBTS & TRANSACTIONS */}
+          {/* LEFT 2-COLUMNS: GOALS, CASH FLOW & TRANSACTIONS */}
           <div className="lg:col-span-2 space-y-6">
-            {/* SAVINGS & DEBTS SUMMARY ROW */}
+            {/* SAVINGS & CASH FLOW SUMMARY ROW */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
                 <div>
@@ -414,22 +414,21 @@ export default function DashboardPage() {
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Active Debts Owed</p>
-                  <h3 className="text-2xl font-extrabold text-rose-600 mb-1">
-                    ₱{loanSummary.totalBorrowed.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {loanSummary.overdueCount > 0 ? (
-                      <span className="text-red-600 font-bold">⚠️ {loanSummary.overdueCount} overdue payments</span>
-                    ) : (
-                      "All payments on schedule"
-                    )}
-                  </p>
+                <p className="text-xs font-bold text-gray-800 uppercase tracking-wide mb-3">Cash Flow Overview</p>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-3 text-xs pb-2 border-b border-gray-100">
+                    <span className="text-gray-500 font-medium">Income received this period</span>
+                    <span className="font-bold text-gray-900">₱{userIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs pb-2 border-b border-gray-100">
+                    <span className="text-gray-500 font-medium">Expenses Logged</span>
+                    <span className="font-bold text-rose-600">₱{totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-gray-500 font-medium">Planned weekly income</span>
+                    <span className="font-bold text-blue-600">₱{plannedWeeklyIncome.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
-                <Link href={ROUTES.LOANS} className="mt-3 text-xs font-bold text-rose-600 hover:underline">
-                  View Debts & Loans →
-                </Link>
               </div>
             </div>
 

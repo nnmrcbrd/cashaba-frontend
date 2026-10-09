@@ -95,4 +95,5 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  knowledgeSources?: Array<{ id: string; source: string; version: string }>;
 }

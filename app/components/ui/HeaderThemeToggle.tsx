@@ -12,8 +12,15 @@ export default function HeaderThemeToggle() {
   useEffect(() => {
     let header: HTMLElement | null = null;
     let observer: MutationObserver | null = null;
+    const viewport = window.matchMedia("(max-width: 1023px)");
 
     const attachToHeader = () => {
+      if (viewport.matches) {
+        header?.removeAttribute("data-theme-host");
+        setHost(null);
+        observer?.disconnect();
+        return;
+      }
       header = document.querySelector<HTMLElement>(".app-page-header");
       if (!header) return;
       header.setAttribute("data-theme-host", "true");
@@ -24,10 +31,12 @@ export default function HeaderThemeToggle() {
     const frame = window.requestAnimationFrame(attachToHeader);
     observer = new MutationObserver(attachToHeader);
     observer.observe(document.body, { childList: true, subtree: true });
+    viewport.addEventListener("change", attachToHeader);
 
     return () => {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
+      viewport.removeEventListener("change", attachToHeader);
       header?.removeAttribute("data-theme-host");
     };
   }, [pathname]);
@@ -35,7 +44,7 @@ export default function HeaderThemeToggle() {
   if (!host) return null;
 
   return createPortal(
-    <div className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 lg:block" data-app-theme-toggle>
+    <div className="app-page-theme-toggle" data-app-theme-toggle>
       <ThemeToggle />
     </div>,
     host,

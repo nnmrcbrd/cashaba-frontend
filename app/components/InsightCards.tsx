@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import apiClient from "@/lib/apiClient";
+import FinancialInsightCard, { type FinancialInsightTone } from "./FinancialInsightCard";
 
 interface Insight {
   id: string;
@@ -11,11 +12,11 @@ interface Insight {
   type: "info" | "success" | "warning" | "tip";
 }
 
-const typeStyles: Record<string, string> = {
-  info: "from-blue-50 to-indigo-50 border-blue-200 text-blue-900",
-  success: "from-emerald-50 to-teal-50 border-emerald-200 text-emerald-900",
-  warning: "from-amber-50 to-orange-50 border-amber-200 text-amber-900",
-  tip: "from-purple-50 to-violet-50 border-purple-200 text-purple-900",
+const insightTones: Record<Insight["type"], FinancialInsightTone> = {
+  info: "blue",
+  success: "emerald",
+  warning: "amber",
+  tip: "violet",
 };
 
 export default function InsightCards() {
@@ -63,20 +64,15 @@ export default function InsightCards() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {insights.map((insight, idx) => (
-          <div
+          <FinancialInsightCard
             key={insight.id}
-            className={`bg-gradient-to-br ${typeStyles[insight.type] || typeStyles.info} border rounded-2xl p-4 flex gap-3 items-start shadow-sm
-              transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}
+            title={insight.title}
+            message={insight.message}
+            icon={insight.icon}
+            tone={insightTones[insight.type] || insightTones.info}
+            className="transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
             style={{ animationDelay: `${idx * 100}ms` }}
-          >
-            <span className="text-xl shrink-0">{insight.icon}</span>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-0.5">
-                {insight.title}
-              </p>
-              <p className="text-xs font-medium leading-relaxed">{insight.message}</p>
-            </div>
-          </div>
+          />
         ))}
       </div>
     </div>

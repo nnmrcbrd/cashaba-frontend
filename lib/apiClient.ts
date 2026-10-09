@@ -54,6 +54,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+    if (status === 402 && error.response?.data?.code === 'TRIAL_EXPIRED' && typeof window !== 'undefined') window.dispatchEvent(new Event('casha-trial-expired'));
     const isAuthRequest = originalRequest?.url?.startsWith("/auth/");
     if (status === 401 && !isAuthRequest && !originalRequest._retry) {
       originalRequest._retry = true;

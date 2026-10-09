@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/ui/sidebar";
 import IncomeExpenseChart from "../components/IncomeExpenseChart";
+import FinancialInsightCard from "../components/FinancialInsightCard";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/context/Authcontext";
 import { exportFinancialReport } from "@/lib/pdfExport";
@@ -82,16 +83,16 @@ export default function AnalyticsPage() {
     {loading || !data ? <p className="py-16 text-center text-xs text-gray-400">Generating consistent period analytics…</p> : <>
       <p className="mb-4 text-xs text-slate-600">Reporting uses Asia/Manila calendar days. Forecasts linearly extend recorded spending and use received income; planned income is shown separately. Early bills can distort the projection.{typeof data.forecast.plannedProjectedBalance === "number" && <span> Using configured income, the planned remaining balance is ₱{data.forecast.plannedProjectedBalance.toLocaleString()}.</span>}{data.forecast.sparseData && " Limited history: treat this estimate cautiously."}</p>
       <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><Metric label="Income received" value={data.summary.totalIncome} detail={`Recorded this period. Configured plan ₱${data.summary.configuredIncome.toLocaleString()}`} tone="emerald" /><Metric label="Loan principal collected" value={data.summary.loanCollections} detail="Cash returned from money you lent; excluded from income" tone="blue" /><Metric label="Spending & debt payments" value={data.summary.totalExpenses} detail={`${data.summary.expenseCount} spending movement${data.summary.expenseCount === 1 ? "" : "s"}`} tone="red" /><Metric label="Operating balance" value={data.summary.netCashFlow} detail="Income minus spending and debt payments; principal transfers excluded" tone={data.summary.netCashFlow < 0 ? "red" : "blue"} /><Metric label="Projected spending" value={data.forecast.projectedExpenses} detail={`Projected operating balance ₱${data.forecast.projectedBalance.toLocaleString()}`} tone="amber" /></section>
-      <section className="mb-6 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 shadow-sm" aria-labelledby="financial-review-summary">
+      <section className="financial-review-summary mb-6 rounded-3xl border p-6 shadow-sm" aria-labelledby="financial-review-summary">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-          <div><h2 id="financial-review-summary" className="text-base font-extrabold text-slate-950">Financial Review Summary</h2><p className="mt-1 text-xs text-slate-500">A concise interpretation of the selected period. Recommendations are based only on your recorded data.</p></div>
+          <div><h2 id="financial-review-summary" className="text-base font-extrabold">Financial Review Summary</h2><p className="financial-review-summary__description mt-1 text-xs">A concise interpretation of the selected period. Recommendations are based only on your recorded data.</p></div>
           <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${data.review.status.tone === "positive" ? "bg-emerald-100 text-emerald-800" : data.review.status.tone === "warning" ? "bg-amber-100 text-amber-800" : data.review.status.tone === "critical" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}>{data.review.status.label}</span>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <ReviewItem label="Financial status" value={data.review.status.detail} tone="emerald" />
-          <ReviewItem label="Strongest area" value={data.review.strongestArea} tone="blue" />
-          <ReviewItem label="Main concern" value={data.review.mainConcern} tone="amber" />
-          <ReviewItem label="Recommended next action" value={data.review.recommendedAction} tone="violet" />
+          <FinancialInsightCard title="Financial status" message={data.review.status.detail} tone="emerald" />
+          <FinancialInsightCard title="Strongest area" message={data.review.strongestArea} tone="blue" />
+          <FinancialInsightCard title="Main concern" message={data.review.mainConcern} tone="amber" />
+          <FinancialInsightCard title="Recommended next action" message={data.review.recommendedAction} tone="violet" />
         </div>
       </section>
       <section className="mb-6 grid gap-6 lg:grid-cols-2">
@@ -106,5 +107,4 @@ export default function AnalyticsPage() {
 
 function format(amount: number) { return `₱${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`; }
 function Metric({ label, value, detail, tone }: { label: string; value: number; detail: string; tone: "emerald" | "red" | "blue" | "amber" }) { const colors = { emerald: "text-emerald-700", red: "text-red-600", blue: "text-blue-700", amber: "text-amber-700" }; return <article className="rounded-2xl border border-gray-200 bg-white p-5"><p className="text-xs text-gray-500">{label}</p><p className={`mt-2 text-2xl font-extrabold ${colors[tone]}`}>{format(value)}</p><p className="mt-1 text-[10px] text-gray-400">{detail}</p></article>; }
-function ReviewItem({ label, value, tone }: { label: string; value: string; tone: "emerald" | "blue" | "amber" | "violet" }) { const accents = { emerald: "border-emerald-200 bg-emerald-50/60 text-emerald-800", blue: "border-blue-200 bg-blue-50/60 text-blue-800", amber: "border-amber-200 bg-amber-50/60 text-amber-800", violet: "border-violet-200 bg-violet-50/60 text-violet-800" }; return <article className={`rounded-2xl border p-4 ${accents[tone]}`}><p className="text-[10px] font-extrabold uppercase tracking-[0.12em]">{label}</p><p className="mt-2 text-xs leading-5 text-slate-700">{value}</p></article>; }
 function ProgressCard({ title, value, amount, warning }: { title: string; value: number; amount: string; warning?: boolean }) { return <article className="rounded-2xl border border-gray-200 bg-white p-5"><div className="flex justify-between text-xs"><strong>{title}</strong><span>{value}%</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className={`h-full ${warning ? "bg-amber-500" : "bg-emerald-600"}`} style={{ width: `${Math.min(100, value)}%` }} /></div><p className="mt-2 text-[10px] text-gray-500">{amount}</p></article>; }

@@ -457,7 +457,7 @@ export default function SettingsPage() {
                     <span>Access</span>
                   </div>
                   <Link href={ROUTES.SUBSCRIPTION} className="font-semibold text-emerald-700 hover:underline">
-                    {planError ? "View plan" : subscription ? subscription.plan === "PLUS" ? "Casha-Ba Plus" : "Free" : "Loading plan…"}
+                    {planError ? "View plan" : subscription ? subscription.planName : "Loading plan…"}
                   </Link>
                 </div>
 

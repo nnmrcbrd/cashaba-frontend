@@ -252,33 +252,30 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#17694d] dark:text-[#8dd2b2]">Simple pricing</p>
-            <h2 className="mt-5 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl lg:text-6xl">Start free. Upgrade when AI saves you time.</h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[#52665e] dark:text-[#b7c5bd]">Every essential money-management feature remains available on Free. Plus expands the features that use ongoing AI and image-processing services.</p>
+            <h2 className="mt-5 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl lg:text-6xl">Try Casha-Ba free for 14 days.</h2>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[#52665e] dark:text-[#b7c5bd]">Continue with Basic, Standard or Premium after your trial. All plans include money tracking, with different AI and scanning limits. Existing records stay available to view and export after expiry.</p>
           </div>
 
-          <div className="mt-14 grid gap-5 lg:grid-cols-2">
+          <div className="mt-14 grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
             <article className="flex flex-col rounded-[1.75rem] border border-[#173d31]/12 bg-[#fbfcf9] p-7 dark:border-white/10 dark:bg-[#17251f] sm:p-9">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#52665e] dark:text-[#b7c5bd]">Casha-Ba Free</p>
-              <div className="mt-4 flex items-end gap-2"><strong className="text-5xl font-semibold tracking-[-0.05em]">₱0</strong><span className="pb-1 text-sm text-[#52665e] dark:text-[#b7c5bd]">forever</span></div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#52665e] dark:text-[#b7c5bd]">14-day trial</p>
+              <div className="mt-4 flex items-end gap-2"><strong className="text-5xl font-semibold tracking-[-0.05em]">₱0</strong><span className="pb-1 text-sm text-[#52665e] dark:text-[#b7c5bd]">for 14 days</span></div>
               <div className="mt-8 space-y-4 text-sm leading-6 text-[#425a50] dark:text-[#c0cec7]">
                 {["Wallets, transactions, transfers, and search", "Safe-to-Spend, budgets, goals, and debts", "CSV import and financial reports", "10 AI coach requests each month", "5 receipt or GCash scans each month"].map((item) => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-[#17694d] dark:text-[#8dd2b2]" size={17} aria-hidden="true" />{item}</p>)}
               </div>
-              <LandingAccountLink guestLabel="Create free account" className="mt-10 inline-flex h-12 items-center justify-center rounded-full border border-[#17694d] px-6 text-sm font-semibold text-[#17694d] transition hover:bg-[#17694d] hover:text-white dark:border-[#8dd2b2] dark:text-[#8dd2b2]" />
+              <LandingAccountLink guestLabel="Start free trial" className="mt-10 inline-flex h-12 items-center justify-center rounded-full border border-[#17694d] px-6 text-sm font-semibold text-[#17694d] transition hover:bg-[#17694d] hover:text-white dark:border-[#8dd2b2] dark:text-[#8dd2b2]" />
             </article>
 
-            <article className="relative flex flex-col overflow-hidden rounded-[1.75rem] bg-[#073f30] p-7 text-white shadow-[0_28px_70px_rgba(7,63,48,0.18)] sm:p-9">
-              <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-300/10" />
-              <div className="relative">
-                <span className="rounded-full bg-emerald-300 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#073f30]">More AI capacity</span>
-                <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">Casha-Ba Plus</p>
-                <div className="mt-4 flex items-end gap-2"><strong className="text-5xl font-semibold tracking-[-0.05em]">₱99</strong><span className="pb-1 text-sm text-emerald-100/70">per month</span></div>
-                <div className="mt-8 space-y-4 text-sm leading-6 text-emerald-50">
-                  {["Everything included in Free", "200 AI coach requests each month", "100 receipt or GCash scans each month", "Personalized AI financial insight cards", "Usage dashboard and period tracking"].map((item) => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-emerald-300" size={17} aria-hidden="true" />{item}</p>)}
+            {[{ name: "Basic", price: 99, ai: 50, scans: 20 }, { name: "Standard", price: 149, ai: 200, scans: 100 }, { name: "Premium", price: 199, ai: 500, scans: 250 }].map(plan => (
+              <article key={plan.name} className="flex flex-col rounded-[1.75rem] bg-[#073f30] p-7 text-white sm:p-9">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">{plan.name}</p>
+                <div className="mt-4 flex flex-wrap items-end gap-2"><strong className="text-5xl font-semibold tracking-[-0.05em]">₱{plan.price}</strong><span className="pb-1 text-sm text-emerald-100/70">per month</span></div>
+                <div className="mt-8 flex-1 space-y-4 text-sm leading-6 text-emerald-50">
+                  {["All money tracking tools", plan.ai + " AI requests per month", plan.scans + " receipt or GCash scans per month", "AI financial insights", "Reports and data export"].map(item => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-emerald-300" size={17} aria-hidden="true" />{item}</p>)}
                 </div>
-                <LandingAccountLink arrow guestLabel="Create account to try Plus" className="mt-10 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-300 px-6 text-sm font-extrabold text-[#073f30] transition hover:bg-emerald-200" />
-                <p className="mt-4 text-xs leading-5 text-emerald-100/60">Plus activation currently uses the capstone test flow. Live payment collection requires production PayMongo activation.</p>
-              </div>
-            </article>
+                <LandingAccountLink arrow guestLabel="Start free trial" className="mt-10 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-300 px-6 text-sm font-extrabold text-[#073f30] transition hover:bg-emerald-200" />
+              </article>
+            ))}
           </div>
         </div>
       </section>

@@ -8,13 +8,12 @@ interface SpendingAlertProps {
     title: string;
     message: string;
   }[];
+  dismissedIds?: string[];
   onDismiss?: (id: string) => void;
 }
 
-export default function SpendingAlert({ status, notifications = [], onDismiss }: SpendingAlertProps) {
+export default function SpendingAlert({ status, notifications = [], dismissedIds = [], onDismiss }: SpendingAlertProps) {
   const visibleAlerts = notifications.filter(Boolean);
-
-  if (!status || (status === "NORMAL" && visibleAlerts.length === 0)) return null;
 
   const statusAlert =
     status === "EXCEEDED_100"
@@ -37,7 +36,7 @@ export default function SpendingAlert({ status, notifications = [], onDismiss }:
     ...(statusAlert ? [statusAlert] : []),
     ...visibleAlerts,
   ].filter(
-    (alert, index, self) => index === self.findIndex((a) => a.id === alert.id)
+    (alert, index, self) => !dismissedIds.includes(alert.id) && index === self.findIndex((a) => a.id === alert.id)
   );
 
   if (allAlerts.length === 0) return null;
@@ -78,6 +77,7 @@ export default function SpendingAlert({ status, notifications = [], onDismiss }:
             </div>
             {onDismiss && (
               <button
+                type="button"
                 onClick={() => onDismiss(alert.id)}
                 className={`text-sm shrink-0 transition ${s.dismiss}`}
                 aria-label="Dismiss"

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AdminSidebar from "@/app/components/ui/AdminSidebar";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/context/Authcontext";
+import { planLabel, type SubscriptionPlan } from "@/services/subscriptionService";
 import { ROUTES } from "@/constants/index";
 
 interface ManagedUser {
@@ -14,6 +15,12 @@ interface ManagedUser {
   joinedDate: string;
   status: "Active" | "Inactive";
   lastActiveAt?: string | null;
+  subscription?: {
+    plan: SubscriptionPlan;
+    status: string;
+    currentPeriodEnd: string | null;
+    provider?: string;
+  };
 }
 
 interface AdminMetrics {
@@ -23,6 +30,7 @@ interface AdminMetrics {
   activeUsers: number;
   newUsersThisWeek?: number;
   weekTransactions?: number;
+  plusSubscribers?: number;
 }
 
 interface LocationCount {
@@ -59,6 +67,8 @@ export default function AdminManageUsersPage() {
   const [chartData, setChartData] = useState<ChartBar[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [subscribersOnly, setSubscribersOnly] = useState(false);
+  const [subscriptionCheckedAt, setSubscriptionCheckedAt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
@@ -82,6 +92,7 @@ export default function AdminManageUsersPage() {
           apiClient.get("/users/admin/audit-log"),
         ]);
         if (res.data) {
+          setSubscriptionCheckedAt(Date.parse(res.data.subscriptionCheckedAt));
           setUsers(res.data.users || []);
           if (res.data.metrics) setMetrics(res.data.metrics);
           if (res.data.locationBreakdown) setLocations(res.data.locationBreakdown);
@@ -97,10 +108,13 @@ export default function AdminManageUsersPage() {
     loadAdminData();
   }, []);
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const isActiveSubscriber = (managedUser: ManagedUser) =>
+    managedUser.subscription !== undefined && managedUser.subscription.plan !== "FREE" &&
+    managedUser.subscription.status === "ACTIVE" &&
+    Boolean(managedUser.subscription.currentPeriodEnd && new Date(managedUser.subscription.currentPeriodEnd).getTime() > subscriptionCheckedAt);
+  const filteredUsers = users.filter((u) =>
+    (!subscribersOnly || isActiveSubscriber(u)) &&
+    (u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   const chartMaximum = Math.max(1, ...chartData.flatMap((bar) => [bar.green, bar.gray]));
 
@@ -110,7 +124,12 @@ export default function AdminManageUsersPage() {
       setBusyUserId(managedUser.id);
       setAdminMessage("");
       await apiClient.patch(`/users/admin/users/${managedUser.id}/status`, { status: nextStatus });
-      setUsers((current) => current.map((item) => item.id === managedUser.id ? { ...item, status: nextStatus === "ACTIVE" ? "Active" : "Inactive" } : item));
+      // Suspension can also cancel live Plus access; reload subscription data
+      // and counts together instead of changing only the account-status cell.
+      const refreshed = await apiClient.get("/users/admin/manage-users");
+      setSubscriptionCheckedAt(Date.parse(refreshed.data.subscriptionCheckedAt));
+      setUsers(refreshed.data.users || []);
+      if (refreshed.data.metrics) setMetrics(refreshed.data.metrics);
       setAdminMessage(`${managedUser.name} is now ${nextStatus === "ACTIVE" ? "active" : "suspended"}.`);
       const audit = await apiClient.get("/users/admin/audit-log");
       setAuditLog(audit.data || []);
@@ -132,7 +151,11 @@ export default function AdminManageUsersPage() {
 
         {/* Section 1: Manage Users Table matching Figma 1:1 */}
         <div className="bg-white rounded-3xl border border-gray-200/90 p-6 shadow-sm mb-6">
-          <div className="flex justify-end mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+              <input type="checkbox" checked={subscribersOnly} onChange={(event) => setSubscribersOnly(event.target.checked)} className="accent-emerald-700" />
+              Active paid subscribers only
+            </label>
             <div className="relative">
               <input
                 type="text"
@@ -153,15 +176,18 @@ export default function AdminManageUsersPage() {
                   <th className="py-3 px-4 font-bold text-gray-900">Email</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Joined Date</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Status</th>
+                  <th className="py-3 px-4 font-bold text-gray-900">Plan / Access type</th>
+                  <th className="py-3 px-4 font-bold text-gray-900">Subscription status</th>
+                  <th className="py-3 px-4 font-bold text-gray-900">Expires</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>
                 )}
                 {!loading && filteredUsers.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No users found.</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No users found.</td></tr>
                 )}
                 {filteredUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/50 transition">
@@ -177,6 +203,12 @@ export default function AdminManageUsersPage() {
                         {u.status}
                       </span>
                     </td>
+                    <td className="py-3.5 px-4">
+                      <strong className={isActiveSubscriber(u) ? "text-emerald-700" : "text-gray-700"}>{planLabel(u.subscription?.plan ?? "FREE")}</strong>
+                      {u.subscription && u.subscription.plan !== "FREE" && <p className="mt-1 text-[10px] text-gray-500">{u.subscription.provider === "PAYMONGO" ? "PayMongo live" : u.subscription.provider === "PAYMONGO_TEST" ? "Test payment" : u.subscription.provider ? "Demo / internal" : "Provider unavailable"}</p>}
+                    </td>
+                    <td className="py-3.5 px-4 text-gray-600">{u.subscription && u.subscription.plan !== "FREE" && u.subscription.status === "ACTIVE" && !isActiveSubscriber(u) ? "Expired" : (u.subscription?.status || "ACTIVE").replaceAll("_", " ").toLowerCase()}</td>
+                    <td className="py-3.5 px-4 text-gray-600 whitespace-nowrap">{u.subscription?.currentPeriodEnd ? new Date(u.subscription.currentPeriodEnd).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" }) : "—"}</td>
                     <td className="py-3.5 px-4"><button type="button" disabled={busyUserId === u.id || u.id === user?.id} onClick={() => toggleStatus(u)} className={`rounded-lg px-3 py-1.5 font-bold text-white disabled:opacity-40 ${u.status === "Active" ? "bg-red-600" : "bg-emerald-700"}`}>{busyUserId === u.id ? "Saving..." : u.status === "Active" ? "Suspend" : "Reactivate"}</button></td>
                   </tr>
                 ))}
@@ -187,7 +219,12 @@ export default function AdminManageUsersPage() {
         </div>
 
         {/* Section 2: 4 Summary Cards matching Figma 1:1 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm">
+            <p className="text-xs font-semibold text-gray-500">Active Paid Subscribers</p>
+            <p className="mt-2 text-2xl font-extrabold text-emerald-700">{loading ? "—" : (metrics.plusSubscribers ?? users.filter(isActiveSubscriber).length).toLocaleString()}</p>
+            <p className="mt-1 text-[10px] text-gray-400">Unexpired paid-plan access, including demo and test</p>
+          </div>
           <div className="bg-white p-5 rounded-2xl border border-gray-200/90 shadow-sm">
             <p className="text-xs font-semibold text-gray-500">Total Users</p>
             <p className="mt-2 text-2xl font-extrabold text-gray-900">{metrics.totalUsers.toLocaleString()}</p>
