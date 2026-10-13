@@ -59,3 +59,31 @@ test('a failed refresh can be retried on a later sign-in', async () => {
     setApiAccessToken(null);
   }
 });
+
+test('fresh Google authentication resets stale activity before startup receives its token; regular refresh preserves it', async () => {
+  const originalAdapter = axios.defaults.adapter;
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const stale = String(Date.now() - 16 * 60 * 1000);
+  const storage = new Map([['casha_last_activity', stale]]);
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {
+    localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) },
+  } });
+  let freshSignIn: unknown = true;
+  axios.defaults.adapter = async config => ({ data: { accessToken: 'fixture-token', freshSignIn },
+    status: 200, statusText: 'OK', headers: {}, config });
+  try {
+    const started = Date.now();
+    assert.equal(await refreshApiAccessToken(), 'fixture-token');
+    assert.ok(Number(storage.get('casha_last_activity')) >= started);
+    for (freshSignIn of [false, undefined, 'true']) {
+      storage.set('casha_last_activity', stale);
+      await refreshApiAccessToken();
+      assert.equal(storage.get('casha_last_activity'), stale);
+    }
+  } finally {
+    axios.defaults.adapter = originalAdapter;
+    setApiAccessToken(null);
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});

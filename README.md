@@ -1,5 +1,8 @@
 # Casha-Ba frontend
 
+For the separate Docker image, Nginx and GitHub Actions workflow, see
+[frontend Docker deployment](DOCKER_DEPLOYMENT.md).
+
 The frontend is a Next.js 16 application for onboarding, wallets, transactions, obligations, debts, budgets, reports, AI assistance, settings, and administration.
 
 ## Local setup

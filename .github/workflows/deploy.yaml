@@ -1,0 +1,123 @@
+name: Frontend Docker deployment
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy this main-branch frontend version
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+concurrency:
+  group: frontend-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api.example.com/api' }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Validate standalone server, Compose and deployment script
+        run: |
+          test -f .next/standalone/server.js
+          cp .env.docker.example .env.docker
+          docker compose --env-file .env.docker config --quiet
+          docker compose --env-file .env.docker -f docker-compose.yaml -f docker/docker-compose.tls.yaml config --quiet
+          bash -n scripts/deploy.sh
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image: ${{ steps.tags.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set image tag and validate public API build setting
+        id: tags
+        env:
+          REGISTRY_OWNER: ${{ vars.DOCKERHUB_USERNAME }}
+          API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        run: |
+          if [[ "$PUBLISH" == true && ( -z "$REGISTRY_OWNER" || -z "$API_URL" ) ]]; then
+            echo 'Set DOCKERHUB_USERNAME and NEXT_PUBLIC_API_URL repository variables' >&2
+            exit 1
+          fi
+          REGISTRY_OWNER="${REGISTRY_OWNER:-cashaba-validation}"
+          [[ "$REGISTRY_OWNER" =~ ^[a-z0-9][a-z0-9_-]*$ ]]
+          echo "image=$REGISTRY_OWNER/cashaba-frontend:sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "api=${API_URL:-https://api.example.com/api}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: runtime
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.tags.outputs.image }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ steps.tags.outputs.api }}
+            NEXT_PUBLIC_PAYMONGO_SUBSCRIPTIONS_ENABLED=${{ vars.NEXT_PUBLIC_PAYMONGO_SUBSCRIPTIONS_ENABLED || 'false' }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deploy:
+    needs: image
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true') ||
+       (github.event_name == 'workflow_dispatch' && inputs.deploy))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Upload frontend bundle and deploy over verified SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/casha-ba-frontend' }}
+          IMAGE: ${{ needs.image.outputs.image }}
+        run: |
+          set -Eeuo pipefail
+          : "${SSH_HOST:?}" "${SSH_USER:?}" "${SSH_PRIVATE_KEY:?}" "${SSH_KNOWN_HOSTS:?}"
+          [[ "$SSH_HOST" =~ ^[A-Za-z0-9.-]+$ && "$SSH_USER" =~ ^[A-Za-z0-9_-]+$ ]]
+          [[ "$SSH_PORT" =~ ^[0-9]+$ && "$DEPLOY_PATH" =~ ^/[A-Za-z0-9/_-]+$ && "$DEPLOY_PATH" != / ]]
+          KEY_DIR="$(mktemp -d)"
+          trap 'rm -rf -- "$KEY_DIR"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$KEY_DIR/key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$KEY_DIR/known_hosts"
+          chmod 600 "$KEY_DIR/key" "$KEY_DIR/known_hosts"
+          SSH_ARGS=(-i "$KEY_DIR/key" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KEY_DIR/known_hosts")
+          RELEASE="$DEPLOY_PATH/releases/$GITHUB_SHA"
+          tar -czf "$KEY_DIR/deployment.tar.gz" docker-compose.yaml nginx.conf docker/docker-compose.tls.yaml docker/nginx-tls.conf docker/nginx scripts/deploy.sh
+          ssh "${SSH_ARGS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "mkdir -p '$RELEASE'"
+          scp "${SSH_ARGS[@]}" -P "$SSH_PORT" "$KEY_DIR/deployment.tar.gz" "$SSH_USER@$SSH_HOST:$RELEASE/deployment.tar.gz"
+          ssh "${SSH_ARGS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "tar -xzf '$RELEASE/deployment.tar.gz' -C '$RELEASE' && DEPLOY_PATH='$DEPLOY_PATH' bash '$RELEASE/scripts/deploy.sh' '$IMAGE'"

@@ -1,0 +1,8 @@
+services:
+  frontend:
+    build:
+      context: .
+      target: runtime
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set the deployed HTTPS API URL ending in /api}
+        NEXT_PUBLIC_PAYMONGO_SUBSCRIPTIONS_ENABLED: ${NEXT_PUBLIC_PAYMONGO_SUBSCRIPTIONS_ENABLED:-false}

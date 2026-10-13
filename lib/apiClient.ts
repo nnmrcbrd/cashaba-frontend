@@ -19,6 +19,11 @@ export function refreshApiAccessToken(): Promise<string> {
       { withCredentials: true },
     ).then((response) => {
       const token = response.data.accessToken as string;
+      // A verified Google login has a signed, one-use marker consumed by the
+      // backend. Normal refreshes must preserve the existing idle deadline.
+      if (response.data.freshSignIn === true && typeof token === 'string' && token && typeof window !== 'undefined') {
+        window.localStorage.setItem('casha_last_activity', String(Date.now()));
+      }
       setApiAccessToken(token);
       return token;
     }).finally(() => {
