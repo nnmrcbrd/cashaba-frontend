@@ -11,6 +11,7 @@ import OnboardingShell, {
   onboardingPrimaryButtonClass,
 } from "@/app/components/onboarding/OnboardingShell";
 import { useAuth } from "@/context/Authcontext";
+import { dashboardSafeToSpend } from "@/lib/dashboardMetrics";
 
 export default function OnboardingBudgetPage() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function OnboardingBudgetPage() {
       apiClient.get("/budget"),
     ]).then(([setup, obligations, goals, budget]) => {
       if (!active) return;
-      setReview({ income: setup.setup?.totalIncome || 0, obligations: obligations.reduce((sum, item) => sum + item.amount, 0), safeToSpend: setup.safeToSpend });
+      setReview({ income: setup.setup?.totalIncome || 0, obligations: obligations.reduce((sum, item) => sum + item.amount, 0), safeToSpend: dashboardSafeToSpend(setup.setup, setup.breakdown ?? null, setup.safeToSpend).safeToSpend });
       if (budget.data.configured) setBudgetLimit(String(budget.data.targetAmount));
       const goal = goals[0];
       if (goal) {
@@ -108,7 +109,7 @@ export default function OnboardingBudgetPage() {
       onSkip={() => void finishWithoutPlan()}
     >
       <form onSubmit={handleFinish} className="space-y-5">
-        <section className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center"><div><p className="text-[10px] font-bold uppercase text-emerald-700">Income</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.income.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-amber-700">Obligations</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.obligations.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-blue-700">Safe now</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.safeToSpend.toLocaleString()}</p></div>{review.obligations > review.income && <p className="col-span-3 mt-2 rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">Your obligations exceed your configured income. Reduce commitments before finishing.</p>}</section>
+        <section className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center"><div><p className="text-[10px] font-bold uppercase text-emerald-700">Income</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.income.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-amber-700">Obligations</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.obligations.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-blue-700">Remaining</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.safeToSpend.toLocaleString()}</p></div>{review.obligations > review.income && <p className="col-span-3 mt-2 rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">Your obligations exceed your configured income. Reduce commitments before finishing.</p>}</section>
         <section className="rounded-2xl border border-slate-200 p-5">
           <div className="flex gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">

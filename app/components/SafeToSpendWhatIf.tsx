@@ -12,6 +12,7 @@ interface SafeToSpendWhatIfProps {
   currentSafeToSpend: number;
   rawSafeToSpend: number;
   periodLabel: string;
+  isPlanned?: boolean;
   onClose: () => void;
 }
 
@@ -19,7 +20,7 @@ function peso(amount: number) {
   return `₱${Math.abs(amount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function SafeToSpendWhatIf({ currentSafeToSpend, rawSafeToSpend, periodLabel, onClose }: SafeToSpendWhatIfProps) {
+export default function SafeToSpendWhatIf({ currentSafeToSpend, rawSafeToSpend, periodLabel, isPlanned = false, onClose }: SafeToSpendWhatIfProps) {
   const [kind, setKind] = useState<SafeToSpendScenarioKind>("expense");
   const [amount, setAmount] = useState("");
   const numericAmount = Number(amount);
@@ -65,7 +66,7 @@ export default function SafeToSpendWhatIf({ currentSafeToSpend, rawSafeToSpend, 
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <ResultCard label="Current Safe-to-Spend" value={peso(currentSafeToSpend)} detail="Based on your saved records" />
+          <ResultCard label={isPlanned ? "Planned Safe-to-Spend" : "Current Safe-to-Spend"} value={peso(currentSafeToSpend)} detail={isPlanned ? "Based on your income plan, not received cash" : "Based on your saved records"} />
           <ResultCard label="Scenario change" value={`${result.impact >= 0 ? "+" : "−"} ${peso(result.impact)}`} detail={selectedOption.label} tone={result.impact > 0 ? "positive" : result.impact < 0 ? "negative" : "neutral"} />
           <ResultCard label="Projected Safe-to-Spend" value={peso(result.projectedSafeToSpend)} detail="Preview after this one change" featured />
           <ResultCard label="Difference" value={`${result.difference > 0 ? "+" : result.difference < 0 ? "−" : ""}${peso(result.difference)}`} detail="Compared with your current amount" tone={result.difference > 0 ? "positive" : result.difference < 0 ? "negative" : "neutral"} />

@@ -20,6 +20,7 @@ import { walletService } from "@/services/walletService";
 import type { Wallet } from "../types";
 import { ROUTES } from "@/constants";
 import { calculateNetWorth } from "@/lib/netWorth";
+import { dashboardSafeToSpend } from "@/lib/dashboardMetrics";
 
 // Financial insight components
 import InsightCards from "../components/InsightCards";
@@ -130,6 +131,7 @@ export default function DashboardPage() {
   }, [showWhatIfCalculator]);
 
   const userIncome = safeToSpendBreakdown?.totalIncome ?? 0;
+  const safeToSpendDisplay = dashboardSafeToSpend(incomeSetup, safeToSpendBreakdown, safeToSpend);
 
   const totalSpent = safeToSpendBreakdown?.totalExpenses ?? transactions
     .filter((t) => ["expense", "bill_payment", "debt_payment"].includes(t.type))
@@ -158,6 +160,7 @@ export default function DashboardPage() {
   const spentPct = budgetData?.spentPct ?? Math.min(Math.round((budgetSpent / (targetBudget || 1)) * 100), 100);
 
   const getStatusBadge = () => {
+    if (budgetData?.configured === false) return { label: "NOT SET", bg: "bg-gray-100 text-gray-600 border-gray-200", bar: "bg-gray-300" };
     if (spentPct >= 100) {
       return { label: "EXCEEDED 🚨", bg: "bg-red-100 text-red-700 border-red-200", bar: "bg-red-500" };
     }
@@ -194,7 +197,9 @@ export default function DashboardPage() {
         {/* Smart Spending Alert Banner */}
         <SpendingAlert
           status={!budgetAlertsEnabled || budgetData?.overallStatus === "NOT_CONFIGURED" ? null : budgetData?.overallStatus}
-          notifications={notifications.filter((notification) => budgetAlertsEnabled || !notification.id.startsWith("budget-"))}
+          notifications={notifications.filter((notification) => budgetAlertsEnabled || !notification.id.startsWith("budget-")).map(notification => safeToSpendDisplay.isPlanned && safeToSpendDisplay.rawSafeToSpend >= 0 && periodExpenses === 0 && notification.id === "negative-safe-to-spend"
+            ? { ...notification, type: "info", title: "Income not recorded yet", message: "Your onboarding income is included in the planned balance. Record income when received to calculate available cash." }
+            : notification)}
           dismissedIds={dismissedAlerts}
           onDismiss={(id) => setDismissedAlerts((prev) => prev.includes(id) ? prev : [...prev, id])}
         />
@@ -215,18 +220,19 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">Safe-to-Spend</p>
                 <span className="text-[10px] bg-white/20 text-white px-2.5 py-0.5 rounded-full font-bold">
-                  Recorded cash
+                  {safeToSpendDisplay.isPlanned ? "Planned" : "Recorded cash"}
                 </span>
               </div>
               <p className="text-3xl font-extrabold tracking-tight my-2">
-                ₱{safeToSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ₱{safeToSpendDisplay.safeToSpend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
+              {safeToSpendDisplay.isPlanned && <p className="text-[11px] text-emerald-100">Received cash available: ₱{safeToSpendDisplay.recordedSafeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>}
             </div>
 
             <div className="mt-4 pt-3 border-t border-emerald-600/40 text-[11px] text-emerald-100">
               {incomeSetup ? (
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium">Income minus reserved amounts and spending.</p>
+                  <p className="font-medium">{safeToSpendDisplay.isPlanned ? "Expected income minus commitments and spending." : "Income minus reserved amounts and spending."}</p>
                   <span className="font-bold whitespace-nowrap">View breakdown →</span>
                 </div>
               ) : (
@@ -247,10 +253,10 @@ export default function DashboardPage() {
 
               <div className="flex items-baseline justify-between mt-1 mb-2">
                 <p className="text-2xl font-bold text-gray-900">
-                  ₱{budgetSpent.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {budgetData?.configured === false ? "Not set" : `₱${targetBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                 </p>
                 <span className="text-xs text-gray-500 font-medium">
-                  of ₱{targetBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })} limit
+                  ₱{budgetSpent.toLocaleString('en-US', { minimumFractionDigits: 2 })} spent
                 </span>
               </div>
 
@@ -273,7 +279,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-            <div><p className="text-xs font-bold uppercase tracking-wide text-gray-800">Wallet balances</p><p className="mt-3 text-2xl font-extrabold text-emerald-700">₱{balanceSummary.walletAssets.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p><p className="mt-1 text-xs text-gray-500">Cash in accounts{loanSummary && <> · ₱{balanceSummary.totalLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 })} total owed</>}</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-wide text-gray-800">Wallet balances</p><p className="mt-3 text-2xl font-extrabold text-emerald-700">₱{balanceSummary.walletAssets.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p><p className="mt-1 text-xs text-gray-500">{wallets.length === 0 ? "No wallet accounts recorded yet." : <>Cash in accounts{loanSummary && <> · ₱{balanceSummary.totalLiabilities.toLocaleString("en-US", { minimumFractionDigits: 2 })} total owed</>}</>}</p></div>
             <Link href={ROUTES.ACCOUNTS} className="mt-4 text-xs font-bold text-emerald-700 hover:underline">Manage wallets →</Link>
           </div>
 
@@ -313,8 +319,8 @@ export default function DashboardPage() {
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700">Your available amount</p>
-                  <h2 id="safe-to-spend-dialog-title" className="mt-1 text-2xl font-extrabold text-slate-950">Why your Safe-to-Spend is ₱{safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h2>
-                  <p className="mt-1 text-xs text-slate-500">This uses the same calculation as the backend.</p>
+                  <h2 id="safe-to-spend-dialog-title" className="mt-1 text-2xl font-extrabold text-slate-950">Why your {safeToSpendDisplay.isPlanned ? "planned " : ""}Safe-to-Spend is ₱{safeToSpendDisplay.safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h2>
+                  <p className="mt-1 text-xs text-slate-500">{safeToSpendDisplay.isPlanned ? "Uses your saved income plan until income is recorded as received. This is not a wallet cash balance." : "Uses received income and the backend's recorded commitments and spending."}</p>
                 </div>
                 <button
                   type="button"
@@ -328,8 +334,8 @@ export default function DashboardPage() {
 
               <div className="mt-5 space-y-3">
                 <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-sm">
-                  <span className="font-semibold text-slate-700">Income for this {incomePeriod === "weekly" ? "week" : "month"}</span>
-                  <strong className="text-emerald-700">+ ₱{userIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                  <span className="font-semibold text-slate-700">{safeToSpendDisplay.isPlanned ? "Expected income" : "Received income"} for this {incomePeriod === "weekly" ? "week" : "month"}</span>
+                  <strong className="text-emerald-700">+ ₱{safeToSpendDisplay.income.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-3 text-sm">
                   <span className="font-semibold text-slate-700">Bills still reserved this period</span>
@@ -349,9 +355,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-slate-900 px-4 py-4 text-sm text-white">
                   <span className="font-bold">Safe-to-Spend</span>
-                  <strong className="text-lg text-emerald-300">₱{safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                  <strong className="text-lg text-emerald-300">₱{safeToSpendDisplay.safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                 </div>
-                {safeToSpendBreakdown && safeToSpendBreakdown.rawSafeToSpend < 0 && <p className="text-xs font-semibold text-rose-700">Commitments exceed received income by ₱{Math.abs(safeToSpendBreakdown.rawSafeToSpend).toLocaleString("en-US", { minimumFractionDigits: 2 })}; Safe-to-Spend is shown as ₱0.</p>}
+                {safeToSpendDisplay.rawSafeToSpend < 0 && <p className="text-xs font-semibold text-rose-700">Commitments exceed {safeToSpendDisplay.isPlanned ? "expected" : "received"} income by ₱{Math.abs(safeToSpendDisplay.rawSafeToSpend).toLocaleString("en-US", { minimumFractionDigits: 2 })}; Safe-to-Spend is shown as ₱0.</p>}
+                {safeToSpendDisplay.isPlanned && <p className="text-xs text-slate-500">Received-income Safe-to-Spend: ₱{safeToSpendDisplay.recordedSafeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}. Record income in your wallet only when it has actually arrived.</p>}
                 <button
                   type="button"
                   onClick={() => {
@@ -404,8 +411,9 @@ export default function DashboardPage() {
 
         {showWhatIfCalculator && (
           <SafeToSpendWhatIf
-            currentSafeToSpend={safeToSpendBreakdown?.safeToSpend ?? safeToSpend}
-            rawSafeToSpend={safeToSpendBreakdown?.rawSafeToSpend ?? safeToSpend}
+            currentSafeToSpend={safeToSpendDisplay.safeToSpend}
+            rawSafeToSpend={safeToSpendDisplay.rawSafeToSpend}
+            isPlanned={safeToSpendDisplay.isPlanned}
             periodLabel={incomePeriod === "weekly" ? "week" : "month"}
             onClose={() => setShowWhatIfCalculator(false)}
           />
@@ -458,7 +466,7 @@ export default function DashboardPage() {
                 <div>
                   <h3 id="obligations-heading" className="text-sm font-bold text-gray-900">Safe-to-Spend Breakdown</h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    These amounts are deducted from your income before your available amount is shown.
+                    These amounts are deducted from {safeToSpendDisplay.isPlanned ? "your expected income to show your remaining income plan" : "your received income to show your available recorded amount"}.
                   </p>
                 </div>
                 <div className="sm:text-right">
@@ -539,9 +547,9 @@ export default function DashboardPage() {
 
               <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-gray-500">
-                   ₱{userIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })} received income − ₱{totalFixedReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })} bills − ₱{totalSavingsReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })} savings − ₱{loanRepaymentsDue.toLocaleString("en-US", { minimumFractionDigits: 2 })} loan payments − ₱{periodExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })} spending
+                   ₱{safeToSpendDisplay.income.toLocaleString("en-US", { minimumFractionDigits: 2 })} {safeToSpendDisplay.isPlanned ? "expected" : "received"} income − ₱{totalFixedReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })} bills − ₱{totalSavingsReserve.toLocaleString("en-US", { minimumFractionDigits: 2 })} savings − ₱{loanRepaymentsDue.toLocaleString("en-US", { minimumFractionDigits: 2 })} loan payments − ₱{periodExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })} spending
                 </span>
-                 <strong className="text-emerald-700">= {safeToSpendBreakdown && safeToSpendBreakdown.rawSafeToSpend < 0 ? `₱${Math.abs(safeToSpendBreakdown.rawSafeToSpend).toLocaleString("en-US", { minimumFractionDigits: 2 })} shortfall; ₱0 safe` : `₱${safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })} safe`}</strong>
+                 <strong className="text-emerald-700">= {safeToSpendDisplay.rawSafeToSpend < 0 ? `₱${Math.abs(safeToSpendDisplay.rawSafeToSpend).toLocaleString("en-US", { minimumFractionDigits: 2 })} shortfall; ₱0 ${safeToSpendDisplay.isPlanned ? "planned" : "safe"}` : `₱${safeToSpendDisplay.safeToSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })} ${safeToSpendDisplay.isPlanned ? "planned" : "safe"}`}</strong>
               </div>
             </section>}
 
