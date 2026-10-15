@@ -31,7 +31,7 @@ export default function NotFound() {
             Go to dashboard
           </Link>
           <Link
-            href="/landing"
+            href="/"
             className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Casha-Ba home
