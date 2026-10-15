@@ -126,7 +126,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="flex min-h-screen bg-[#f7f9f8]"><Sidebar /><main className="app-main">
-      <header className="app-page-header app-page-header--sticky mb-6 border-b border-gray-200/60 pb-4">
+      <header className="app-page-header relative mb-6 border-b border-gray-200/60 pb-4">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
           <div><h1>Transaction History</h1><p className="mt-1 max-w-xl text-xs text-gray-500">Every recorded movement is linked to its account and retained in an audit trail.</p></div>
           <button onClick={() => setModalMode("expense")} className="shrink-0 rounded-xl bg-[#186849] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#11563d]">+ Add transaction</button>
