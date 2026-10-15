@@ -27,7 +27,6 @@ import HealthScoreWidget from "../components/HealthScoreWidget";
 import SpendingAlert from "../components/SpendingAlert";
 import RecurringDetectionBanner from "../components/RecurringDetectionBanner";
 import SafeToSpendWhatIf from "../components/SafeToSpendWhatIf";
-import DashboardSetupSummary from "../components/DashboardSetupSummary";
 
 interface BudgetData {
   configured?: boolean;
@@ -192,7 +191,6 @@ export default function DashboardPage() {
             <button type="button" onClick={() => { setDashboardLoading(true); setLoadError(""); setReloadAttempt(attempt => attempt + 1); }} className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Retry loading dashboard</button>
           </div>
         ) : <>
-        <DashboardSetupSummary incomeSetup={incomeSetup} receivedIncome={userIncome} budget={budgetData} fixedExpenses={fixedExpenses} savingsGoals={savingsGoals} />
         {/* Smart Spending Alert Banner */}
         <SpendingAlert
           status={!budgetAlertsEnabled || budgetData?.overallStatus === "NOT_CONFIGURED" ? null : budgetData?.overallStatus}
