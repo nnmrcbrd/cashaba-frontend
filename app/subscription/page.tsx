@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { X } from "lucide-react";
 import Sidebar from "@/app/components/ui/sidebar";
 import { subscriptionService, planLabel, type PaidPlan, type SubscriptionSummary } from "@/services/subscriptionService";
 import { clearSubscriptionCheckoutKey, subscriptionCheckoutKey } from "@/lib/subscriptionCheckout";
@@ -18,6 +19,8 @@ function Usage({ label, used, limit }: { label: string; used: number; limit: num
 export default function SubscriptionPage() {
   const [data, setData] = useState<SubscriptionSummary | null>(null);
   const [message, setMessage] = useState("");
+  const [dismissedMessage, setDismissedMessage] = useState("");
+  const [billingNoticeDismissed, setBillingNoticeDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState("");
   const requestInFlight = useRef(false);
@@ -56,7 +59,7 @@ export default function SubscriptionPage() {
   async function act(action: () => Promise<SubscriptionSummary>, success: string) {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage(""); setDismissedMessage("");
     try { update(await action()); setMessage(success); }
     catch (error) { setMessage(errorMessage(error, "The plan change could not be completed.")); }
     finally { requestInFlight.current = false; setBusy(false); }
@@ -64,7 +67,7 @@ export default function SubscriptionPage() {
   async function selectPlan(plan: PaidPlan) {
     if (!data || requestInFlight.current) return;
     requestInFlight.current = true;
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage(""); setDismissedMessage("");
     try {
       const key = subscriptionCheckoutKey(data.userId, `${data.billingMode}:${plan}`);
       if (data.demoAvailable) {
@@ -98,7 +101,7 @@ export default function SubscriptionPage() {
   async function checkPayment() {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage(""); setDismissedMessage("");
     try {
       const summary = await subscriptionService.verifyTestCheckout();
       update(summary);
@@ -116,9 +119,9 @@ export default function SubscriptionPage() {
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">Plans &amp; usage</p><h1>Casha-Ba Plus</h1>
       <p className="mt-2 text-sm text-gray-500">Start with a 14-day free trial. Continue with Basic, Standard or Premium.</p>
     </header>
-    {message && <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{message}</p>}
+    {message && message !== dismissedMessage && <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><p role="status" className="min-w-0 flex-1">{message}</p><button type="button" aria-label="Dismiss checkout notification" onClick={() => setDismissedMessage(message)} className="-m-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"><X className="h-4 w-4" aria-hidden="true" /></button></div>}
     {checkoutUnconfirmed && <div role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>Your first checkout is processing or its result is unconfirmed. A second checkout is blocked to avoid another payment. If the status stays unconfirmed, contact support.</p><button type="button" disabled={busy} onClick={() => void act(subscriptionService.getMine, "Payment status refreshed.")} className="mt-2 rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">Refresh payment status</button></div>}
-    {data && <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-5 text-emerald-800">{data.billingMode === "paymongo_test" ? "PayMongo test payments only. No real money is collected and there is no automatic renewal. Verified payment activates your selected plan for 30 days." : data.demoAvailable || data.provider === "DEMO" ? "Demo billing. No real payment is collected. Demo plans last 30 days." : "Paid access activates after PayMongo confirms payment. Recurring plans bill monthly until cancelled."}</p>}
+    {data && !billingNoticeDismissed && <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-5 text-emerald-800"><p className="min-w-0 flex-1">{data.billingMode === "paymongo_test" ? "PayMongo test payments only. No real money is collected and there is no automatic renewal. Verified payment activates your selected plan for 30 days." : data.demoAvailable || data.provider === "DEMO" ? "Demo billing. No real payment is collected. Demo plans last 30 days." : "Paid access activates after PayMongo confirms payment. Recurring plans bill monthly until cancelled."}</p><button type="button" aria-label="Dismiss billing information" onClick={() => setBillingNoticeDismissed(true)} className="-m-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"><X className="h-4 w-4" aria-hidden="true" /></button></div>}
     <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold text-gray-500">CURRENT ACCESS</p><h2 className="mt-0.5 text-xl font-extrabold">{data?.planName ?? "Loading…"}</h2>
         {data?.accessStatus === "TRIAL" && <p className="mt-1 text-xs text-emerald-700">{data.trialDaysRemaining} {data.trialDaysRemaining === 1 ? "day" : "days"} left · Ends {dateLabel(data.trialEndsAt)}</p>}
