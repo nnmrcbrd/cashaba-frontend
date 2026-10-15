@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BarChart3, Bot, CalendarRange, ChevronDown, ChevronLeft, ChevronRight,
   Crown, HandCoins, History, LayoutDashboard, LogOut, Menu,
-  PhilippinePeso, Settings, Sparkles, Target, Users, WalletCards, X,
+  PhilippinePeso, Settings, ShieldCheck, Sparkles, Target, Users, WalletCards, X,
   type LucideIcon,
 } from "lucide-react";
 import { NAV_GROUPS, ROUTES } from "@/constants/index";
@@ -30,7 +30,16 @@ const NAV_ICONS: Record<string, LucideIcon> = {
 };
 const GROUP_ICONS: Record<string, LucideIcon> = {
   money: PhilippinePeso, planning: CalendarRange, intelligence: Sparkles,
+  administration: ShieldCheck,
 };
+const ADMIN_NAV_GROUPS = [{
+  id: "administration",
+  label: "Administration",
+  items: [
+    { href: ROUTES.ADMIN_MANAGE_USERS, label: "Manage Users" },
+    { href: ROUTES.ADMIN_ACTIVITY_LOGS, label: "Activity Logs" },
+  ],
+}] as const;
 const SIDEBAR_STATE_KEY = "casha_sidebar_collapsed";
 const SIDEBAR_GROUPS_KEY = "casha_sidebar_groups";
 const DEFAULT_GROUPS: Record<string, boolean> = {
@@ -42,12 +51,14 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
   const homeRoute = isAdmin ? ROUTES.ADMIN_MANAGE_USERS : ROUTES.DASHBOARD;
   const navigationId = isAdmin ? "admin-navigation" : "user-navigation";
   const sidebarStateKey = isAdmin ? "casha_admin_sidebar_collapsed" : SIDEBAR_STATE_KEY;
+  const sidebarGroupsKey = isAdmin ? "casha_admin_sidebar_groups" : SIDEBAR_GROUPS_KEY;
+  const navigationGroups = isAdmin ? ADMIN_NAV_GROUPS : NAV_GROUPS;
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(DEFAULT_GROUPS);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(isAdmin ? { administration: true } : DEFAULT_GROUPS);
   const drawerRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -68,18 +79,18 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
     const frame = window.requestAnimationFrame(() => {
       setMobileOpen(false);
       setCollapsed(window.localStorage.getItem(sidebarStateKey) === "true");
-      let savedGroups = { ...DEFAULT_GROUPS };
+      let savedGroups: Record<string, boolean> = isAdmin ? { administration: true } : { ...DEFAULT_GROUPS };
       try {
-        savedGroups = { ...savedGroups, ...JSON.parse(window.localStorage.getItem(SIDEBAR_GROUPS_KEY) || "{}") };
+        savedGroups = { ...savedGroups, ...JSON.parse(window.localStorage.getItem(sidebarGroupsKey) || "{}") };
       } catch {
         // Keep the default navigation if an old saved preference is invalid.
       }
-      const activeGroup = NAV_GROUPS.find(group => group.items.some(item => pathname?.startsWith(item.href)));
+      const activeGroup = navigationGroups.find(group => group.items.some(item => pathname?.startsWith(item.href)));
       if (activeGroup) savedGroups[activeGroup.id] = true;
       setOpenGroups(savedGroups);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [pathname, sidebarStateKey]);
+  }, [pathname, sidebarStateKey, sidebarGroupsKey, navigationGroups, isAdmin]);
 
   useEffect(() => {
     if (!mobileOpen || !isMobile) return;
@@ -141,11 +152,11 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
     const expandSidebar = collapsed && !isMobile;
     if (expandSidebar) {
       setCollapsed(false);
-      window.localStorage.setItem(SIDEBAR_STATE_KEY, "false");
+      window.localStorage.setItem(sidebarStateKey, "false");
     }
     setOpenGroups(current => {
       const next = { ...current, [groupId]: expandSidebar ? true : !current[groupId] };
-      window.localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(next));
+      window.localStorage.setItem(sidebarGroupsKey, JSON.stringify(next));
       return next;
     });
   }
@@ -202,12 +213,8 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
         <ThemeMenuRow />
 
         <nav aria-label={isAdmin ? "Admin main navigation" : "Main navigation"} className="sidebar-nav casha-sidebar__nav">
-          {isAdmin ? <>
-            {navLink(ROUTES.ADMIN_MANAGE_USERS, "Manage Users")}
-            {navLink(ROUTES.ADMIN_ACTIVITY_LOGS, "Activity Logs")}
-          </> : <>
-          {navLink(ROUTES.DASHBOARD, "Dashboard")}
-          {NAV_GROUPS.map(group => {
+          {!isAdmin && navLink(ROUTES.DASHBOARD, "Dashboard")}
+          {navigationGroups.map(group => {
             const GroupIcon = GROUP_ICONS[group.id];
             const active = group.items.some(item => pathname?.startsWith(item.href));
             const groupOpen = Boolean(openGroups[group.id]) && (!collapsed || isMobile);
@@ -226,11 +233,10 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
               </div>
             );
           })}
-          <div className="casha-sidebar__secondary">
+          {!isAdmin && <div className="casha-sidebar__secondary">
             {navLink(ROUTES.SUBSCRIPTION, "Casha-Ba Plus")}
             {navLink(ROUTES.SETTINGS, "Settings")}
-          </div>
-          </>}
+          </div>}
         </nav>
 
         {!isAdmin && <TrialNotice />}
