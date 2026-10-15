@@ -11,10 +11,12 @@ import {
   Ellipsis,
   PhilippinePeso,
   Users,
+  History,
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/Authcontext";
 import ThemeMenuRow from "./ThemeMenuRow";
+import { ROUTES } from "@/constants";
 
 const ADMIN_SIDEBAR_STATE_KEY = "casha_admin_sidebar_collapsed";
 
@@ -65,6 +67,7 @@ export default function AdminSidebar() {
   }
 
   const manageUsersActive = pathname?.startsWith("/admin/manage-users");
+  const activityLogsActive = pathname?.startsWith(ROUTES.ADMIN_ACTIVITY_LOGS);
 
   return (
     <>
@@ -141,6 +144,20 @@ export default function AdminSidebar() {
             </span>
           </Link>
 
+          <Link
+            href={ROUTES.ADMIN_ACTIVITY_LOGS}
+            onClick={() => setMobileOpen(false)}
+            title="Activity Logs"
+            aria-current={activityLogsActive ? "page" : undefined}
+            className={`group flex h-12 items-center justify-start gap-3 rounded-xl px-3 text-sm font-medium transition-all ${
+              activityLogsActive
+                ? "bg-white/12 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+                : "text-emerald-50/70 hover:bg-white/7 hover:text-white"
+            }`}
+          >
+            <History className={`h-5 w-5 shrink-0 ${activityLogsActive ? "text-emerald-300" : "text-emerald-100/65 group-hover:text-emerald-200"}`} strokeWidth={1.9} aria-hidden="true" />
+            <span className={`truncate ${collapsed ? "lg:hidden" : ""}`}>Activity Logs</span>
+          </Link>
         </nav>
       </div>
 

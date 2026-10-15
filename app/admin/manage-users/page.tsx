@@ -44,14 +44,6 @@ interface ChartBar {
   gray: number;
 }
 
-interface AuditEntry {
-  id: string;
-  action: string;
-  targetId?: string | null;
-  createdAt: string;
-  actor: { firstName: string; lastName?: string | null; email: string };
-}
-
 export default function AdminManageUsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
 
@@ -72,7 +64,6 @@ export default function AdminManageUsersPage() {
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
 
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -87,10 +78,7 @@ export default function AdminManageUsersPage() {
     async function loadAdminData() {
       try {
         setLoading(true);
-        const [res, audit] = await Promise.all([
-          apiClient.get("/users/admin/manage-users"),
-          apiClient.get("/users/admin/audit-log"),
-        ]);
+        const res = await apiClient.get("/users/admin/manage-users");
         if (res.data) {
           setSubscriptionCheckedAt(Date.parse(res.data.subscriptionCheckedAt));
           setUsers(res.data.users || []);
@@ -98,7 +86,6 @@ export default function AdminManageUsersPage() {
           if (res.data.locationBreakdown) setLocations(res.data.locationBreakdown);
           if (res.data.chartData) setChartData(res.data.chartData);
         }
-        setAuditLog(audit.data || []);
       } catch (err) {
         console.error("Failed to load admin management data", err);
       } finally {
@@ -131,8 +118,6 @@ export default function AdminManageUsersPage() {
       setUsers(refreshed.data.users || []);
       if (refreshed.data.metrics) setMetrics(refreshed.data.metrics);
       setAdminMessage(`${managedUser.name} is now ${nextStatus === "ACTIVE" ? "active" : "suspended"}.`);
-      const audit = await apiClient.get("/users/admin/audit-log");
-      setAuditLog(audit.data || []);
     } catch {
       setAdminMessage("Unable to change this account status.");
     } finally {
@@ -292,13 +277,6 @@ export default function AdminManageUsersPage() {
                 <p className="py-6 text-center text-[11px] text-gray-400">Location data is not collected.</p>
               )}
             </div>
-          </div>
-        </div>
-        <div className="mt-6 rounded-3xl border border-gray-200/90 bg-white p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-bold text-gray-900">Recent Administrator Actions</h3>
-          <div className="divide-y divide-gray-100 text-xs">
-            {auditLog.slice(0, 10).map((entry) => <div key={entry.id} className="flex flex-wrap justify-between gap-2 py-3"><span className="font-semibold text-gray-800">{entry.action.replaceAll("_", " ")}</span><span className="text-gray-500">{entry.actor.email} · {new Date(entry.createdAt).toLocaleString()}</span></div>)}
-            {!loading && auditLog.length === 0 && <p className="py-4 text-gray-400">No administrator actions recorded yet.</p>}
           </div>
         </div>
       </main>

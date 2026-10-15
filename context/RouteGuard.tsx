@@ -6,11 +6,12 @@ import { useAuth } from "@/context/Authcontext";
 import HeaderThemeToggle from "@/app/components/ui/HeaderThemeToggle";
 import AccessDenied from "@/app/components/auth/AccessDenied";
 
-const ADMIN_ALLOWED_ROUTES = new Set(["/admin/manage-users", "/admin/appearance", "/change-password"]);
+const ADMIN_ALLOWED_ROUTES = new Set(["/admin/manage-users", "/admin/activity-logs", "/admin/appearance", "/change-password"]);
 const PROTECTED_ROUTES = new Set([
   "/accounts",
   "/admin/appearance",
   "/admin/manage-users",
+  "/admin/activity-logs",
   "/ai-assistant",
   "/analytics",
   "/budget",

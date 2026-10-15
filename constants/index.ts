@@ -24,6 +24,7 @@ export const ROUTES = {
   SETTINGS: "/settings",
   SUBSCRIPTION: "/subscription",
   ADMIN_MANAGE_USERS: "/admin/manage-users",
+  ADMIN_ACTIVITY_LOGS: "/admin/activity-logs",
 };
 
 export const CATEGORIES = {
