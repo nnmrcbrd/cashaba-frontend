@@ -27,6 +27,7 @@ import HealthScoreWidget from "../components/HealthScoreWidget";
 import SpendingAlert from "../components/SpendingAlert";
 import RecurringDetectionBanner from "../components/RecurringDetectionBanner";
 import SafeToSpendWhatIf from "../components/SafeToSpendWhatIf";
+import DashboardSetupSummary from "../components/DashboardSetupSummary";
 
 interface BudgetData {
   configured?: boolean;
@@ -46,6 +47,10 @@ interface DashboardNotification {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [reloadAttempt, setReloadAttempt] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [incomeSetup, setIncomeSetup] = useState<IncomeSetup | null>(null);
   const [safeToSpend, setSafeToSpend] = useState<number>(0);
@@ -64,18 +69,21 @@ export default function DashboardPage() {
   const [insightCardsEnabled] = useState(() => typeof window === "undefined" || localStorage.getItem("casha_weekly_summary") !== "false");
 
   useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
     async function loadData() {
       try {
         const [txData, setupData, goalsData, fixedData, loansData, budgetRes, notificationRes, walletData] = await Promise.all([
           transactionService.getTransactions(),
           incomeSetupService.getIncomeSetup(),
-          incomeSetupService.getSavingsGoals().catch(() => []),
-          incomeSetupService.getFixedExpenses().catch(() => []),
-          loanService.getLoans().catch(() => null),
-          apiClient.get("/budget").catch(() => ({ data: null })),
+          incomeSetupService.getSavingsGoals(),
+          incomeSetupService.getFixedExpenses(),
+          loanService.getLoans(),
+          apiClient.get("/budget"),
           apiClient.get("/notifications").catch(() => ({ data: { notifications: [] } })),
-          walletService.getWallets().catch(() => []),
+          walletService.getWallets(),
         ]);
+        if (!active) return;
         setTransactions(txData);
         setIncomeSetup(setupData.setup);
         setSafeToSpend(setupData.safeToSpend);
@@ -83,19 +91,24 @@ export default function DashboardPage() {
         setSavingsGoals(goalsData);
         setFixedExpenses(fixedData);
         setLoanSummary(loansData?.summary ?? null);
-        if (budgetRes?.data) {
-          setBudgetData(budgetRes.data);
-        }
+        setBudgetData(budgetRes.data);
         setNotifications(notificationRes.data.notifications || []);
         setWallets(walletData);
+        setLoadError("");
       } catch (err) {
         console.error("Failed to load dashboard data", err);
+        if (active) setLoadError("We couldn't load your saved setup and balances. Retry to fetch your account data.");
       } finally {
-        setLoansLoading(false);
+        if (active) {
+          setLoansLoading(false);
+          setDashboardLoading(false);
+          setLoadedUserId(user?.id ?? null);
+        }
       }
     }
     loadData();
-  }, []);
+    return () => { active = false; };
+  }, [user?.id, reloadAttempt]);
 
   useEffect(() => {
     if (!showSafeToSpendBreakdown) return;
@@ -171,6 +184,15 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+        {dashboardLoading || loadedUserId !== user?.id ? (
+          <div role="status" className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">Loading your saved setup and balances…</div>
+        ) : loadError ? (
+          <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+            <p>{loadError}</p>
+            <button type="button" onClick={() => { setDashboardLoading(true); setLoadError(""); setReloadAttempt(attempt => attempt + 1); }} className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white">Retry loading dashboard</button>
+          </div>
+        ) : <>
+        <DashboardSetupSummary incomeSetup={incomeSetup} receivedIncome={userIncome} budget={budgetData} fixedExpenses={fixedExpenses} savingsGoals={savingsGoals} />
         {/* Smart Spending Alert Banner */}
         <SpendingAlert
           status={!budgetAlertsEnabled || budgetData?.overallStatus === "NOT_CONFIGURED" ? null : budgetData?.overallStatus}
@@ -610,6 +632,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        </>}
       </main>
     </div>
   );
