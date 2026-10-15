@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import {
   Banknote,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import LandingAuthActions, { LandingAccountLink } from "./LandingAuthActions";
 import LandingExperience from "./LandingExperience";
+import LandingHomeLink from "./LandingHomeLink";
 import ThemeToggle from "./ThemeToggle";
 
 const FAQS = [
@@ -71,10 +71,10 @@ function BrandMark() {
 
 export default function LandingPage() {
   return (
-    <main className={GeistSans.className + " w-full max-w-full overflow-x-clip bg-[#f5f7f2] text-[#10231d] dark:bg-[#0d1713] dark:text-[#edf4ef]"}>
+    <main className={GeistSans.className + " landing-page w-full max-w-full overflow-x-clip bg-[#f5f7f2] text-[#10231d] dark:bg-[#0d1713] dark:text-[#edf4ef]"}>
       <header className="sticky top-0 z-50 border-b border-[#173d31]/10 bg-[#f5f7f2]/90 backdrop-blur-xl dark:border-white/10 dark:bg-[#0d1713]/90">
           <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
-            <Link href="/" aria-label="Casha-Ba home"><BrandMark /></Link>
+            <LandingHomeLink><BrandMark /></LandingHomeLink>
             <nav aria-label="Landing page navigation" className="hidden items-center gap-7 text-sm font-medium text-[#52665e] dark:text-[#b4c1ba] lg:flex">
               <a href="#features" className="transition hover:text-[#17694d] dark:hover:text-[#8dd2b2]">Features</a>
               <a href="#pricing" className="transition hover:text-[#17694d] dark:hover:text-[#8dd2b2]">Pricing</a>
@@ -292,7 +292,7 @@ export default function LandingPage() {
 
       <footer className="bg-[#0d1713] px-5 py-12 text-[#c1cec7] sm:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-[1fr_auto] md:items-end">
-          <div><BrandMark /><p className="mt-5 max-w-md text-sm leading-6 text-[#879a90]">A personal-finance capstone system for clearer spending, saving, and planning decisions.</p></div>
+          <div><LandingHomeLink><BrandMark /></LandingHomeLink><p className="mt-5 max-w-md text-sm leading-6 text-[#879a90]">A personal-finance capstone system for clearer spending, saving, and planning decisions.</p></div>
           <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm"><LandingAuthActions variant="footer" /><a href="#features" className="hover:text-white">Features</a><a href="#questions" className="hover:text-white">Questions</a></div>
         </div>
         <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-2 border-t border-white/10 pt-6 text-xs text-[#71847a] sm:flex-row sm:items-center sm:justify-between"><p>© 2026 Casha-Ba</p><p>Capstone development build. Demo data recommended.</p></div>

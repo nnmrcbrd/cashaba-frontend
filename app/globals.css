@@ -146,6 +146,11 @@
   }
 }
 
+html:has(.landing-page) {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
 @layer components {
   .app-main {
     height: 100dvh;
@@ -860,6 +865,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:has(.landing-page) {
+    scroll-behavior: auto;
+  }
+
   .casha-sidebar,
   .casha-sidebar__link,
   .casha-sidebar__chevron {
