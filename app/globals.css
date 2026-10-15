@@ -152,6 +152,7 @@
     min-width: 0;
     flex: 1;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     background: var(--app-canvas);
     color: var(--app-text);
     padding: 1.5rem;
@@ -214,10 +215,9 @@
 
 .app-page-theme-toggle {
   position: absolute;
-  right: 0.5rem;
-  top: 50%;
+  right: 0;
+  top: 0;
   z-index: 10;
-  transform: translateY(-50%);
 }
 
 @media (min-width: 1024px) {
