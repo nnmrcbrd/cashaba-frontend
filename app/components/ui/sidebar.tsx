@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BarChart3, Bot, CalendarRange, ChevronDown, ChevronLeft, ChevronRight,
   Crown, HandCoins, History, LayoutDashboard, LogOut, Menu,
-  PhilippinePeso, Settings, Sparkles, Target, WalletCards, X,
+  PhilippinePeso, Settings, Sparkles, Target, Users, WalletCards, X,
   type LucideIcon,
 } from "lucide-react";
 import { NAV_GROUPS, ROUTES } from "@/constants/index";
@@ -25,6 +25,8 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   [ROUTES.ANALYTICS]: BarChart3,
   [ROUTES.SETTINGS]: Settings,
   [ROUTES.SUBSCRIPTION]: Crown,
+  [ROUTES.ADMIN_MANAGE_USERS]: Users,
+  [ROUTES.ADMIN_ACTIVITY_LOGS]: History,
 };
 const GROUP_ICONS: Record<string, LucideIcon> = {
   money: PhilippinePeso, planning: CalendarRange, intelligence: Sparkles,
@@ -35,7 +37,11 @@ const DEFAULT_GROUPS: Record<string, boolean> = {
   money: true, planning: false, intelligence: false,
 };
 
-export default function Sidebar() {
+export default function Sidebar({ variant = "user" }: { variant?: "user" | "admin" }) {
+  const isAdmin = variant === "admin";
+  const homeRoute = isAdmin ? ROUTES.ADMIN_MANAGE_USERS : ROUTES.DASHBOARD;
+  const navigationId = isAdmin ? "admin-navigation" : "user-navigation";
+  const sidebarStateKey = isAdmin ? "casha_admin_sidebar_collapsed" : SIDEBAR_STATE_KEY;
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
@@ -61,7 +67,7 @@ export default function Sidebar() {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       setMobileOpen(false);
-      setCollapsed(window.localStorage.getItem(SIDEBAR_STATE_KEY) === "true");
+      setCollapsed(window.localStorage.getItem(sidebarStateKey) === "true");
       let savedGroups = { ...DEFAULT_GROUPS };
       try {
         savedGroups = { ...savedGroups, ...JSON.parse(window.localStorage.getItem(SIDEBAR_GROUPS_KEY) || "{}") };
@@ -73,7 +79,7 @@ export default function Sidebar() {
       setOpenGroups(savedGroups);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [pathname]);
+  }, [pathname, sidebarStateKey]);
 
   useEffect(() => {
     if (!mobileOpen || !isMobile) return;
@@ -126,7 +132,7 @@ export default function Sidebar() {
   function toggleSidebar() {
     setCollapsed(current => {
       const next = !current;
-      window.localStorage.setItem(SIDEBAR_STATE_KEY, String(next));
+      window.localStorage.setItem(sidebarStateKey, String(next));
       return next;
     });
   }
@@ -162,9 +168,9 @@ export default function Sidebar() {
       <div ref={headerRef} className="casha-mobile-header">
         <div className="casha-mobile-header__brand">
           <button ref={menuRef} type="button" className="casha-sidebar__icon-button"
-            aria-label="Open navigation menu" aria-expanded={mobileOpen} aria-controls="user-navigation"
+            aria-label="Open navigation menu" aria-expanded={mobileOpen} aria-controls={navigationId}
             onClick={() => setMobileOpen(true)}><Menu aria-hidden="true" /></button>
-          <Link href={ROUTES.DASHBOARD} className="casha-sidebar__brand">
+          <Link href={homeRoute} className="casha-sidebar__brand">
             <span className="casha-sidebar__logo">₱</span><span>Casha-Ba</span>
           </Link>
         </div>
@@ -173,15 +179,15 @@ export default function Sidebar() {
       {mobileOpen && <button type="button" tabIndex={-1} className="casha-sidebar-backdrop"
         aria-label="Close navigation menu" onClick={() => setMobileOpen(false)} />}
 
-      <aside ref={drawerRef} id="user-navigation" aria-label="Casha-Ba navigation"
+      <aside ref={drawerRef} id={navigationId} aria-label={isAdmin ? "Admin navigation" : "Casha-Ba navigation"}
         role={isMobile ? "dialog" : undefined} aria-modal={isMobile && mobileOpen ? true : undefined}
         inert={isMobile && !mobileOpen}
         className={"casha-sidebar" + (mobileOpen ? " is-open" : "") + (collapsed ? " is-collapsed" : "")}>
         <div className="casha-sidebar__header">
-          <Link href={ROUTES.DASHBOARD} title="Casha-Ba dashboard" className="casha-sidebar__brand"
+          <Link href={homeRoute} title={isAdmin ? "Casha-Ba admin" : "Casha-Ba dashboard"} className="casha-sidebar__brand"
             onClick={() => setMobileOpen(false)}>
             <span className="casha-sidebar__logo">₱</span>
-            <span className="casha-sidebar__copy"><strong>Casha-Ba</strong><small>Personal finance</small></span>
+            <span className="casha-sidebar__copy"><strong>Casha-Ba</strong><small>{isAdmin ? "Administration" : "Personal finance"}</small></span>
           </Link>
           <button type="button" onClick={toggleSidebar} className="casha-sidebar__icon-button casha-sidebar__collapse"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
@@ -195,7 +201,11 @@ export default function Sidebar() {
 
         <ThemeMenuRow />
 
-        <nav aria-label="Main navigation" className="sidebar-nav casha-sidebar__nav">
+        <nav aria-label={isAdmin ? "Admin main navigation" : "Main navigation"} className="sidebar-nav casha-sidebar__nav">
+          {isAdmin ? <>
+            {navLink(ROUTES.ADMIN_MANAGE_USERS, "Manage Users")}
+            {navLink(ROUTES.ADMIN_ACTIVITY_LOGS, "Activity Logs")}
+          </> : <>
           {navLink(ROUTES.DASHBOARD, "Dashboard")}
           {NAV_GROUPS.map(group => {
             const GroupIcon = GROUP_ICONS[group.id];
@@ -220,9 +230,10 @@ export default function Sidebar() {
             {navLink(ROUTES.SUBSCRIPTION, "Casha-Ba Plus")}
             {navLink(ROUTES.SETTINGS, "Settings")}
           </div>
+          </>}
         </nav>
 
-        <TrialNotice />
+        {!isAdmin && <TrialNotice />}
         <div className="casha-sidebar__footer">
           <div className="casha-sidebar__profile" title={user?.name ?? "Casha-Ba User"}>
             <div className="casha-sidebar__avatar">
@@ -231,7 +242,7 @@ export default function Sidebar() {
             </div>
             <div className="casha-sidebar__copy">
               <p className="casha-sidebar__user-name">{user?.name ?? "Casha-Ba User"}</p>
-              <p className="casha-sidebar__user-role">{user?.customRole || user?.role?.[0] || "Personal"}</p>
+              <p className="casha-sidebar__user-role">{isAdmin ? "System Admin" : user?.customRole || user?.role?.[0] || "Personal"}</p>
             </div>
           </div>
           <button type="button" onClick={logout} title="Sign out" aria-label="Sign out" className="casha-sidebar__link">
