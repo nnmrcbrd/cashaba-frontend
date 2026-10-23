@@ -29,4 +29,8 @@ See the repository-level README for architecture, financial rules, testing, and 
 
 ## Mobile and installation
 
+For the native Android APK, Capacitor setup, and build commands, see [Android app](docs/ANDROID.md).
+
+Run `npm run mobile` to open the built APK in an Android phone window on your laptop. Run `npm run android:run` after code changes to rebuild and open the updated app. `npm run dev` runs the website.
+
 On phones and tablets, the user screen has a centered bottom bar with Home, Money, Planning, Intelligence, and More. Each section opens its links in a centered sheet above the bar; the admin screen uses the same sheet pattern. The app includes an installable web manifest, 192px and 512px icons, and a service worker that shows a reconnect screen when navigation fails offline. Financial account data is never cached for offline use; recording or viewing transactions still requires a connection to the API. Install from the browser's **Add to Home screen** or **Install app** action on HTTPS (or localhost during development).

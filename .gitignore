@@ -15,6 +15,8 @@
 
 # next.js
 /.next/
+/.next-mobile/
+/.mobile-build/
 /out/
 
 # production
@@ -47,3 +49,12 @@ docker/tls/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Android machine-specific files and signing credentials
+/android/.gradle/
+/android/local.properties
+/android/**/build/
+/android/.idea/
+*.jks
+*.keystore
+/mobile-artifacts/

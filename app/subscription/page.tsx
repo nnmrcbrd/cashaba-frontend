@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import Sidebar from "@/app/components/ui/sidebar";
 import { subscriptionService, planLabel, type PaidPlan, type SubscriptionSummary } from "@/services/subscriptionService";
 import { clearSubscriptionCheckoutKey, subscriptionCheckoutKey } from "@/lib/subscriptionCheckout";
+import { openExternalPage } from '@/lib/nativeBrowser';
 
 function errorMessage(error: unknown, fallback: string) {
   return axios.isAxiosError<{ message?: string }>(error) ? error.response?.data?.message || fallback : fallback;
@@ -78,7 +79,7 @@ export default function SubscriptionPage() {
         const url = new URL(result.checkoutUrl);
         if (result.testMode !== true || url.protocol !== "https:" || url.hostname !== "checkout.paymongo.com") throw new Error("Invalid checkout URL");
         update(result.subscription);
-        window.location.assign(url.toString());
+        await openExternalPage(url.toString());
       } else if (liveCheckoutEnabled) {
         const normalized = phone.trim().replace(/[\s()-]/g, "").replace(/^09/, "+639");
         if (!/^\+639\d{9}$/.test(normalized)) { setMessage("Enter a valid Philippine mobile number, such as 09171234567."); return; }
@@ -88,7 +89,7 @@ export default function SubscriptionPage() {
         if (result.authorizationUrl) {
           const url = new URL(result.authorizationUrl);
           if (url.protocol !== "https:" || !(url.hostname === "paymongo.com" || url.hostname.endsWith(".paymongo.com"))) throw new Error("Invalid authorization URL");
-          window.location.assign(url.toString());
+          await openExternalPage(url.toString());
         }
       } else setMessage("Checkout is not configured yet. Please contact the administrator.");
     } catch (error) {

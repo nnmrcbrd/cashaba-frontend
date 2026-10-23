@@ -62,9 +62,9 @@ const AI_FLOW = [
 
 function BrandMark() {
   return (
-    <span className="flex items-center gap-3 font-semibold tracking-[-0.02em] text-[#123e30] dark:text-[#ecf5f0]">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#17694d] text-base font-bold text-white">₱</span>
-      <span className="text-lg">Casha-Ba</span>
+    <span className="flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-[-0.02em] text-[#123e30] dark:text-[#ecf5f0] sm:gap-3">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#17694d] text-base font-bold text-white sm:h-9 sm:w-9">₱</span>
+      <span className="hidden text-sm min-[360px]:inline sm:text-lg">Casha-Ba</span>
     </span>
   );
 }
@@ -73,7 +73,7 @@ export default function LandingPage() {
   return (
     <main className={GeistSans.className + " landing-page w-full max-w-full overflow-x-clip bg-[#f5f7f2] text-[#10231d] dark:bg-[#0d1713] dark:text-[#edf4ef]"}>
       <header className="sticky top-0 z-50 border-b border-[#173d31]/10 bg-[#f5f7f2]/90 backdrop-blur-xl dark:border-white/10 dark:bg-[#0d1713]/90">
-          <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
+          <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-2 px-3 sm:px-8">
             <LandingHomeLink><BrandMark /></LandingHomeLink>
             <nav aria-label="Landing page navigation" className="hidden items-center gap-7 text-sm font-medium text-[#52665e] dark:text-[#b4c1ba] lg:flex">
               <a href="#features" className="transition hover:text-[#17694d] dark:hover:text-[#8dd2b2]">Features</a>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
+import { Capacitor } from '@capacitor/core';
+import { startMobileGoogleSignIn } from '@/lib/mobileAuth';
 
 type Provider = "google";
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
@@ -21,11 +23,17 @@ const PROVIDERS: Array<{
 
 export default function SocialButtons() {
   const [loadingProvider, setLoadingProvider] = useState<Provider | null>(null);
+  const [error, setError] = useState('');
 
-  function continueWith(provider: (typeof PROVIDERS)[number]) {
+  async function continueWith(provider: (typeof PROVIDERS)[number]) {
     if (!provider.url || loadingProvider) return;
     setLoadingProvider(provider.id);
-    window.location.assign(provider.url);
+    setError('');
+    if (Capacitor.isNativePlatform()) {
+      try { await startMobileGoogleSignIn(); }
+      catch { setError('Google sign-in could not be opened. Please try again.'); }
+      finally { setLoadingProvider(null); }
+    } else window.location.assign(provider.url);
   }
 
   return (
@@ -53,6 +61,7 @@ export default function SocialButtons() {
           );
         })}
       </div>
+      {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
       <div className="my-4 flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-200" />
         <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Or continue with email</span>

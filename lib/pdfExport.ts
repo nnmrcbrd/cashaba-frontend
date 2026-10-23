@@ -1,4 +1,5 @@
 import { Transaction } from "@/app/types";
+import { Capacitor } from '@capacitor/core';
 
 export interface ReportData {
   allowanceLabel?: string;
@@ -139,6 +140,11 @@ export function buildFinancialReportHtml(data: ReportData) {
 }
 
 export function exportFinancialReport(data: ReportData) {
+  if (Capacitor.isNativePlatform()) {
+    void import('./nativeFiles').then(({ printNativeReport }) => printNativeReport(buildFinancialReportHtml(data)))
+      .catch(() => alert('The Android print dialog could not be opened. Please try again.'));
+    return;
+  }
   const printWindow = window.open('', '_blank');
   if (!printWindow) { alert('Please allow popups to export the report.'); return; }
   printWindow.opener = null;

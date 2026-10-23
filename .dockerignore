@@ -5,6 +5,10 @@
 .codex
 node_modules
 .next
+.next-mobile
+.mobile-build
+android
+mobile-artifacts
 out
 build
 coverage

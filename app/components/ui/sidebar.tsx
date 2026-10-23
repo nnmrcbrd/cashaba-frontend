@@ -4,6 +4,7 @@ import TrialNotice from "./TrialNotice";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { normalizeAppPathname } from '@/lib/routeAccess';
 import { useEffect, useRef, useState } from "react";
 import {
   BarChart3, Bot, CalendarRange, ChevronDown, ChevronLeft, ChevronRight,
@@ -53,7 +54,7 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
   const sidebarStateKey = isAdmin ? "casha_admin_sidebar_collapsed" : SIDEBAR_STATE_KEY;
   const sidebarGroupsKey = isAdmin ? "casha_admin_sidebar_groups" : SIDEBAR_GROUPS_KEY;
   const navigationGroups = isAdmin ? ADMIN_NAV_GROUPS : NAV_GROUPS;
-  const pathname = usePathname();
+  const pathname = normalizeAppPathname(usePathname());
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);

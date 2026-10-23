@@ -9,6 +9,7 @@ import { ROUTES } from "@/constants/index";
 import { incomeSetupService } from "@/services/incomeSetupService";
 import apiClient from "@/lib/apiClient";
 import axios from "axios";
+import { saveExportFile } from '@/lib/nativeFiles';
 import { subscriptionService, type SubscriptionSummary } from "@/services/subscriptionService";
 
 const TABS = ["Profile", "Income", "Preferences", "Security"] as const;
@@ -223,15 +224,8 @@ export default function SettingsPage() {
         : new Blob([response.data], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `casha-ba-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setPrivacyMsg("Your Excel data export has been downloaded.");
+      const destination = await saveExportFile(blob, `casha-ba-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      setPrivacyMsg(destination === 'shared' ? 'Your Excel export is ready in the Android save/share sheet.' : 'Your Excel data export has been downloaded.');
     } catch {
       setPrivacyMsg("Unable to export your data right now.");
     }

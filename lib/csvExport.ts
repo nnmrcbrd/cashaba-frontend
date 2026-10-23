@@ -1,8 +1,9 @@
 /**
  * csvExport.ts
  * Utility to export an array of transactions as a downloadable CSV file.
- * No external dependencies — pure browser API.
+ * Uses browser downloads on web and the Android share sheet in the APK.
  */
+import { saveExportFile } from './nativeFiles';
 
 interface ExportTransaction {
   id?: string;
@@ -36,13 +37,5 @@ export function exportTransactionsCSV(
 
   const csvContent = [headers.join(","), ...rows].join("\n");
   const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  void saveExportFile(blob, filename).catch(() => alert('The CSV export could not be saved or shared. Please try again.'));
 }

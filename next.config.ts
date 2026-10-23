@@ -1,10 +1,21 @@
 import type { NextConfig } from "next";
 
+const isMobileBuild = process.env.CASHABA_MOBILE_BUILD === "1";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: isMobileBuild ? "export" : "standalone",
+  distDir: ".next",
+  ...(isMobileBuild ? {
+    trailingSlash: true,
+    // Mobile screens are .tsx. The .ts Next API proxy needs a server and is
+    // deliberately omitted; the APK calls the Express API directly.
+    pageExtensions: ["tsx"],
+    images: { unoptimized: true },
+    turbopack: { root: process.env.CASHABA_MOBILE_SOURCE_ROOT },
+  } : {}),
   poweredByHeader: false,
   devIndicators: false,
-  async headers() {
+  headers: isMobileBuild ? undefined : async function headers() {
     return [{
       source: "/:path*",
       headers: [

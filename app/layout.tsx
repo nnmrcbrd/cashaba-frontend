@@ -4,6 +4,7 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { RouteGuard } from "../context/RouteGuard";
 import IdleSessionManager from "./components/auth/IdleSessionManager";
 import PwaRegistration from "./components/PwaRegistration";
+import NativeRuntime from "./components/NativeRuntime";
 import ThemeInitializationScript from "./components/ThemeInitializationScript";
 import "./globals.css";
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#073f30",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -32,6 +34,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <AuthProvider>
+            <NativeRuntime />
             <PwaRegistration />
             <IdleSessionManager />
             <RouteGuard>{children}</RouteGuard>
