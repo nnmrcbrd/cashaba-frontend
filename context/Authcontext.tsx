@@ -12,23 +12,27 @@ import { ROUTES } from "../constants/index";
 import { User } from "../app/types/index";
 import apiClient, { refreshApiAccessToken, setApiAccessToken } from "@/lib/apiClient";
 import axios from "axios";
+import { responseFieldErrors } from '@/lib/fieldValidation';
 
 interface AuthContextValue {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User | null>;
-  signup: (firstName: string, lastName: string, email: string, password: string, gender: string) => Promise<{ email: string; challengeId: string } | null>;
+  signup: (firstName: string, middleName: string, lastName: string, email: string, password: string, gender: string) => Promise<{ email: string; challengeId: string } | null>;
   refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
   loginError: string | null;
   signupError: string | null;
+  signupFieldErrors: Record<string, string>;
+  clearSignupFieldError: (field: string) => void;
   loading: boolean;
 }
 
 interface BackendUser {
   id: string;
   firstName: string;
+  middleName?: string | null;
   lastName?: string | null;
   email: string;
   gender?: string | null;
@@ -67,13 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [signupError, setSignupError] = useState<string | null>(null);
+  const [signupFieldErrors, setSignupFieldErrors] = useState<Record<string, string>>({});
   const router = useRouter();
 
   // Helper to map backend user to frontend User type
   const mapBackendUser = (dbUser: BackendUser): User => {
     return {
       id: dbUser.id,
-      name: `${dbUser.firstName} ${dbUser.lastName || ""}`.trim(),
+      name: [dbUser.firstName, dbUser.middleName, dbUser.lastName].filter(Boolean).join(" "),
       email: dbUser.email,
       gender: dbUser.gender || undefined,
       avatar: dbUser.avatarUrl || undefined,
@@ -147,11 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signup(firstName: string, lastName: string, email: string, password: string, gender: string) {
+  async function signup(firstName: string, middleName: string, lastName:  string, email: string, password: string, gender: string) {
     setSignupError(null);
+    setSignupFieldErrors({});
     try {
       const res = await apiClient.post("/auth/signup", {
         firstName,
+        middleName,
         lastName,
         email,
         password,
@@ -177,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? error.response?.data?.message || error.response?.data?.errors?.[0]?.message
         : null;
       setSignupError(message || "Unable to create your account. Please try again.");
+      setSignupFieldErrors(responseFieldErrors(error));
       return null;
     }
   }
@@ -207,6 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         loginError,
         signupError,
+        signupFieldErrors,
+        clearSignupFieldError: field => setSignupFieldErrors(current => { const next = { ...current }; delete next[field]; return next; }),
         loading,
       }}
     >

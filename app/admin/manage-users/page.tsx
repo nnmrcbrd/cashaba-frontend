@@ -7,13 +7,15 @@ import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/context/Authcontext";
 import { planLabel, type SubscriptionPlan } from "@/services/subscriptionService";
 import { ROUTES } from "@/constants/index";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from '@/app/components/ui/ValidatedForm';
+import axios from 'axios';
 
 interface ManagedUser {
   id: string;
   name: string;
   email: string;
   joinedDate: string;
-  status: "Active" | "Inactive";
+  status: "Active" | "Suspended";
   lastActiveAt?: string | null;
   subscription?: {
     plan: SubscriptionPlan;
@@ -64,6 +66,10 @@ export default function AdminManageUsersPage() {
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
+  const [suspendingUser, setSuspendingUser] = useState<ManagedUser | null>(null);
+  const [suspensionCategory, setSuspensionCategory] = useState('SECURITY');
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [suspensionError, setSuspensionError] = useState('');
 
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -105,12 +111,12 @@ export default function AdminManageUsersPage() {
   );
   const chartMaximum = Math.max(1, ...chartData.flatMap((bar) => [bar.green, bar.gray]));
 
-  async function toggleStatus(managedUser: ManagedUser) {
+  async function toggleStatus(managedUser: ManagedUser, suspension?: { category: string; reason: string }) {
     const nextStatus = managedUser.status === "Active" ? "SUSPENDED" : "ACTIVE";
     try {
       setBusyUserId(managedUser.id);
       setAdminMessage("");
-      await apiClient.patch(`/users/admin/users/${managedUser.id}/status`, { status: nextStatus });
+      await apiClient.patch(`/users/admin/users/${managedUser.id}/status`, { status: nextStatus, ...suspension });
       // Suspension can also cancel live Plus access; reload subscription data
       // and counts together instead of changing only the account-status cell.
       const refreshed = await apiClient.get("/users/admin/manage-users");
@@ -118,8 +124,11 @@ export default function AdminManageUsersPage() {
       setUsers(refreshed.data.users || []);
       if (refreshed.data.metrics) setMetrics(refreshed.data.metrics);
       setAdminMessage(`${managedUser.name} is now ${nextStatus === "ACTIVE" ? "active" : "suspended"}.`);
-    } catch {
-      setAdminMessage("Unable to change this account status.");
+      setSuspendingUser(null);
+    } catch (error) {
+      const message = axios.isAxiosError<{ message?: string; errors?: Array<{ message: string }> }>(error) ? error.response?.data?.errors?.[0]?.message || error.response?.data?.message : null;
+      setAdminMessage(message || 'Unable to change this account status.');
+      setSuspensionError(message || 'Unable to change this account status.');
     } finally {
       setBusyUserId(null);
     }
@@ -132,6 +141,7 @@ export default function AdminManageUsersPage() {
         {/* Header matching Figma */}
         <div className="app-page-header mb-6 pb-2">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 uppercase">MANAGE USERS</h1>
+          <p className="mt-2 text-sm text-gray-600">Inactivity never suspends an account. Suspension blocks sign-in for a documented security issue, abuse, or a user request. An idle session may sign out for security without changing account status.</p>
         </div>
 
         {/* Section 1: Manage Users Table matching Figma 1:1 */}
@@ -160,7 +170,7 @@ export default function AdminManageUsersPage() {
                   <th className="py-3 px-4 font-bold text-gray-900">Name</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Email</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Joined Date</th>
-                  <th className="py-3 px-4 font-bold text-gray-900">Status</th>
+                  <th className="py-3 px-4 font-bold text-gray-900">Account status / Last sign-in</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Plan / Access type</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Subscription status</th>
                   <th className="py-3 px-4 font-bold text-gray-900">Expires</th>
@@ -187,6 +197,7 @@ export default function AdminManageUsersPage() {
                       >
                         {u.status}
                       </span>
+                      <p className="mt-1 text-[10px] text-gray-500">{u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleDateString('en-PH') : 'No sign-in recorded'}</p>
                     </td>
                     <td className="py-3.5 px-4">
                       <strong className={isActiveSubscriber(u) ? "text-emerald-700" : "text-gray-700"}>{planLabel(u.subscription?.plan ?? "FREE")}</strong>
@@ -194,7 +205,7 @@ export default function AdminManageUsersPage() {
                     </td>
                     <td className="py-3.5 px-4 text-gray-600">{u.subscription && u.subscription.plan !== "FREE" && u.subscription.status === "ACTIVE" && !isActiveSubscriber(u) ? "Expired" : (u.subscription?.status || "ACTIVE").replaceAll("_", " ").toLowerCase()}</td>
                     <td className="py-3.5 px-4 text-gray-600 whitespace-nowrap">{u.subscription?.currentPeriodEnd ? new Date(u.subscription.currentPeriodEnd).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" }) : "—"}</td>
-                    <td className="py-3.5 px-4"><button type="button" disabled={busyUserId === u.id || u.id === user?.id} onClick={() => toggleStatus(u)} className={`rounded-lg px-3 py-1.5 font-bold text-white disabled:opacity-40 ${u.status === "Active" ? "bg-red-600" : "bg-emerald-700"}`}>{busyUserId === u.id ? "Saving..." : u.status === "Active" ? "Suspend" : "Reactivate"}</button></td>
+                    <td className="py-3.5 px-4"><button type="button" disabled={busyUserId === u.id || u.id === user?.id} onClick={() => { if (u.status === 'Active') { setSuspendingUser(u); setSuspensionReason(''); setSuspensionError(''); } else void toggleStatus(u); }} className={`rounded-lg px-3 py-1.5 font-bold text-white disabled:opacity-40 ${u.status === "Active" ? "bg-red-600" : "bg-emerald-700"}`}>{busyUserId === u.id ? "Saving..." : u.status === "Active" ? "Suspend" : "Reactivate"}</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -280,6 +291,16 @@ export default function AdminManageUsersPage() {
           </div>
         </div>
       </main>
+      {suspendingUser && <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="suspension-title">
+        <ValidatedForm className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6" onSubmit={event => { event.preventDefault(); void toggleStatus(suspendingUser, { category: suspensionCategory, reason: suspensionReason.trim() }); }}>
+          <h2 id="suspension-title" className="text-lg font-bold">Suspend {suspendingUser.name}?</h2>
+          <p className="text-sm text-gray-600">This blocks sign-in, revokes sessions, and cancels subscription access. Inactivity is not a valid reason. The reason will be kept in the admin activity log.</p>
+          <label className="block text-sm font-semibold">Reason category<ValidatedSelect aria-label="Reason category" value={suspensionCategory} onChange={event => setSuspensionCategory(event.target.value)} required className="field-input"><option value="SECURITY">Confirmed security issue</option><option value="ABUSE">Abuse or misuse</option><option value="USER_REQUEST">Requested by the account owner</option></ValidatedSelect></label>
+          <label className="block text-sm font-semibold">Explanation<ValidatedInput aria-label="Suspension explanation" value={suspensionReason} onChange={event => setSuspensionReason(event.target.value)} required minLength={10} maxLength={500} validate={value => /inactiv|not\s+active/i.test(value) ? 'Inactivity is not a reason for suspension.' : ''} className="field-input" /></label>
+          {suspensionError && <p role="alert" className="field-error">{suspensionError}</p>}
+          <div className="flex gap-3"><button type="button" disabled={Boolean(busyUserId)} onClick={() => setSuspendingUser(null)} className="flex-1 rounded-xl border px-3 py-2">Cancel</button><button type="submit" disabled={Boolean(busyUserId)} className="flex-1 rounded-xl bg-red-600 px-3 py-2 font-semibold text-white disabled:opacity-50">{busyUserId ? 'Saving…' : 'Suspend account'}</button></div>
+        </ValidatedForm>
+      </div>}
     </div>
   );
 }

@@ -132,7 +132,7 @@ export default function LandingPage() {
         <section aria-label="Product principles" className="border-b border-[#173d31]/10 bg-[#edf1eb] px-5 dark:border-white/10 dark:bg-[#111e18] sm:px-8">
           <div className="mx-auto grid max-w-7xl divide-y divide-[#173d31]/10 dark:divide-white/10 md:grid-cols-[1.2fr_0.8fr_1fr] md:divide-x md:divide-y-0">
             <p className="py-7 text-sm font-medium md:pr-8">Built around Philippine peso records</p>
-            <p className="py-7 text-sm text-[#52665e] dark:text-[#b7c5bd] md:px-8">Free core tracking · optional Casha-Ba Plus</p>
+            <p className="py-7 text-sm text-[#52665e] dark:text-[#b7c5bd] md:px-8">14-day free trial · Casha-Ba Pro</p>
             <p className="py-7 text-sm text-[#52665e] dark:text-[#b7c5bd] md:pl-8">You confirm record-changing AI actions</p>
           </div>
         </section>
@@ -253,7 +253,7 @@ export default function LandingPage() {
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#17694d] dark:text-[#8dd2b2]">Simple pricing</p>
             <h2 className="mt-5 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl lg:text-6xl">Try Casha-Ba free for 14 days.</h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[#52665e] dark:text-[#b7c5bd]">Continue with Basic, Standard or Premium after your trial. All plans include money tracking, with different AI and scanning limits. Existing records stay available to view and export after expiry.</p>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[#52665e] dark:text-[#b7c5bd]">Continue with Basic, Standard or Pro after your trial. All plans include money tracking, with different AI and scanning limits. Existing records stay available to view and export after expiry.</p>
           </div>
 
           <div className="mt-14 grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
@@ -261,17 +261,18 @@ export default function LandingPage() {
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#52665e] dark:text-[#b7c5bd]">14-day trial</p>
               <div className="mt-4 flex items-end gap-2"><strong className="text-5xl font-semibold tracking-[-0.05em]">₱0</strong><span className="pb-1 text-sm text-[#52665e] dark:text-[#b7c5bd]">for 14 days</span></div>
               <div className="mt-8 space-y-4 text-sm leading-6 text-[#425a50] dark:text-[#c0cec7]">
-                {["Wallets, transactions, transfers, and search", "Safe-to-Spend, budgets, goals, and debts", "CSV import and financial reports", "10 AI coach requests each month", "5 receipt or GCash scans each month"].map((item) => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-[#17694d] dark:text-[#8dd2b2]" size={17} aria-hidden="true" />{item}</p>)}
+                {["Wallets, transactions, transfers, and search", "Safe-to-Spend, budgets, goals, and debts", "Shared savings profiles with invitations", "CSV import and financial reports", "10 AI coach requests each month", "5 receipt or GCash scans each month"].map((item) => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-[#17694d] dark:text-[#8dd2b2]" size={17} aria-hidden="true" />{item}</p>)}
               </div>
               <LandingAccountLink guestLabel="Start free trial" className="mt-10 inline-flex h-12 items-center justify-center rounded-full border border-[#17694d] px-6 text-sm font-semibold text-[#17694d] transition hover:bg-[#17694d] hover:text-white dark:border-[#8dd2b2] dark:text-[#8dd2b2]" />
             </article>
 
-            {[{ name: "Basic", price: 99, ai: 50, scans: 20 }, { name: "Standard", price: 149, ai: 200, scans: 100 }, { name: "Premium", price: 199, ai: 500, scans: 250 }].map(plan => (
+            {[{ name: "Basic", price: 99, ai: 50, scans: 20 }, { name: "Standard", price: 149, ai: 200, scans: 100 }, { name: "Pro", price: 199, ai: 500, scans: 250 }].map(plan => (
               <article key={plan.name} className="flex flex-col rounded-[1.75rem] bg-[#073f30] p-7 text-white sm:p-9">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-200">{plan.name}</p>
                 <div className="mt-4 flex flex-wrap items-end gap-2"><strong className="text-5xl font-semibold tracking-[-0.05em]">₱{plan.price}</strong><span className="pb-1 text-sm text-emerald-100/70">per month</span></div>
                 <div className="mt-8 flex-1 space-y-4 text-sm leading-6 text-emerald-50">
                   {["All money tracking tools", plan.ai + " AI requests per month", plan.scans + " receipt or GCash scans per month", "AI financial insights", "Reports and data export"].map(item => <p key={item} className="flex gap-3"><Check className="mt-1 shrink-0 text-emerald-300" size={17} aria-hidden="true" />{item}</p>)}
+                  {plan.name === 'Pro' && <p className="flex gap-3"><Check className="mt-1 shrink-0 text-emerald-300" size={17} aria-hidden="true" />Shared savings: 5 profiles, 10 members per profile</p>}
                 </div>
                 <LandingAccountLink arrow guestLabel="Start free trial" className="mt-10 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-emerald-300 px-6 text-sm font-extrabold text-[#073f30] transition hover:bg-emerald-200" />
               </article>

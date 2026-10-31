@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm } from "@/app/components/ui/ValidatedForm";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -83,12 +84,12 @@ export default function ChangePasswordPage() {
             </section>
 
             <section className="p-6 sm:p-9">
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <ValidatedForm onSubmit={handleSubmit} className="space-y-5">
                 {!signedInWithGoogle && (
                   <PasswordInput id="currentPassword" name="current" label="Current password" value={form.current} onChange={handleChange} autoComplete="current-password" />
                 )}
                 <PasswordInput id="nextPassword" name="next" label="New password" value={form.next} onChange={handleChange} autoComplete="new-password" />
-                <PasswordInput id="confirmPassword" name="confirm" label="Confirm new password" value={form.confirm} onChange={handleChange} autoComplete="new-password" />
+                <PasswordInput id="confirmPassword" name="confirm" label="Confirm new password" value={form.confirm} validate={value => value !== form.next ? 'Passwords do not match.' : ''} onChange={handleChange} autoComplete="new-password" />
 
                 <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
                   <p className={`flex items-center gap-2 ${validPassword ? "text-emerald-700" : ""}`}><Check size={14} /> At least 8 characters, including a letter and number</p>
@@ -107,7 +108,7 @@ export default function ChangePasswordPage() {
                     {loading ? "Updating..." : signedInWithGoogle ? "Set password" : "Update password"}
                   </button>
                 </div>
-              </form>
+              </ValidatedForm>
             </section>
           </div>
         </div>

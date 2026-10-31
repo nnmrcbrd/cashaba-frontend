@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm } from "@/app/components/ui/ValidatedForm";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -60,9 +61,9 @@ export default function ResetPasswordForm({ token }: { token: string }) {
           <Link href={ROUTES.LOGIN} className="flex h-12 items-center justify-center rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white hover:bg-[#084f3b]">Continue to sign in</Link>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <ValidatedForm onSubmit={handleSubmit} className="space-y-5">
           <PasswordInput id="newPassword" label="New password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" />
-          <PasswordInput id="confirmPassword" label="Confirm new password" value={confirm} onChange={(event) => setConfirm(event.target.value)} autoComplete="new-password" />
+          <PasswordInput id="confirmPassword" label="Confirm new password" value={confirm} validate={value => value !== password ? 'Passwords do not match.' : ''} onChange={(event) => setConfirm(event.target.value)} autoComplete="new-password" />
           <p className={`flex items-center gap-2 text-xs ${validPassword ? "text-emerald-700" : "text-slate-500"}`}><Check size={14} /> At least 8 characters with a letter and a number</p>
           {error && (
             <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -74,7 +75,7 @@ export default function ResetPasswordForm({ token }: { token: string }) {
             {loading ? "Updating password..." : "Reset password"}
           </button>
           <Link href={ROUTES.FORGOT_PASSWORD} className="block text-center text-sm font-semibold text-slate-500 hover:text-[#0b6b4f]">Request a new code</Link>
-        </form>
+        </ValidatedForm>
       )}
     </AuthShell>
   );

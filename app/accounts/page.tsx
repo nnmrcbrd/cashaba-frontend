@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
@@ -357,7 +358,7 @@ function AccountModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 px-4 py-8">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+      <ValidatedForm onSubmit={submit} className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{account ? "Edit account" : "Add account"}</h2>
@@ -371,7 +372,7 @@ function AccountModal({
         {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
 
         <label className="mb-1 block text-xs font-semibold text-gray-700">Account name</label>
-        <input
+        <ValidatedInput
           value={form.name}
           onChange={(event) => setForm({ ...form, name: event.target.value })}
           placeholder="e.g. Daily cash or Savings"
@@ -401,7 +402,7 @@ function AccountModal({
         {form.accountType === "OTHER" && (
           <div className="mb-4">
             <label htmlFor="custom-account-type" className="mb-1 block text-xs font-semibold text-gray-700">Name this account type</label>
-            <input
+            <ValidatedInput
               id="custom-account-type"
               value={form.customType || ""}
               onChange={(event) => setForm({ ...form, customType: event.target.value })}
@@ -416,7 +417,7 @@ function AccountModal({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-semibold text-gray-700">Institution (optional)</label>
-            <input
+            <ValidatedInput
               value={form.institution || ""}
               onChange={(event) => setForm({ ...form, institution: event.target.value })}
               placeholder="e.g. Your bank or e-wallet"
@@ -428,11 +429,12 @@ function AccountModal({
             <label className="mb-1 block text-xs font-semibold text-gray-700">
               {form.kind === "LIABILITY" ? "Current amount owed" : "Opening balance"}
             </label>
-            <input
+            <ValidatedInput
               type="number"
               min="0"
               step="0.01"
               value={form.openingBalance}
+              max="999999999999.99"
               onChange={(event) => setForm({ ...form, openingBalance: Number(event.target.value) })}
               required
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -483,7 +485,7 @@ function AccountModal({
             {saving ? "Saving..." : account ? "Save changes" : "Create account"}
           </button>
         </div>
-      </form>
+      </ValidatedForm>
     </div>
   );
 }

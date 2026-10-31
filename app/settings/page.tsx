@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from "@/app/components/ui/ValidatedForm";
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
@@ -297,7 +298,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-400 mt-0.5">Manage your personal information.</p>
               </div>
 
-              <form onSubmit={handleSaveProfile}>
+              <ValidatedForm onSubmit={handleSaveProfile}>
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                   {/* Left Column: Avatar */}
                   <div className="lg:col-span-3 flex flex-col items-center gap-4">
@@ -337,9 +338,11 @@ export default function SettingsPage() {
                   <div className="lg:col-span-5 space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name</label>
-                      <input
+                      <ValidatedInput
                         type="text"
                         value={fullName}
+                        required maxLength={240}
+                        validate={value => value.trim().split(/\s+/).length < 2 ? 'Enter your first and last name.' : ''}
                         onChange={(e) => setFullName(e.target.value)}
                         className="w-full bg-white border border-gray-300 rounded-lg px-3.5 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
                       />
@@ -347,7 +350,7 @@ export default function SettingsPage() {
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">Phone Number / Email Address</label>
-                      <input
+                      <ValidatedInput
                         type="text"
                         value={user?.email || ""}
                         readOnly
@@ -357,7 +360,7 @@ export default function SettingsPage() {
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">Gender</label>
-                      <select
+                      <ValidatedSelect
                         value={gender}
                         onChange={(e) => setGender(e.target.value)}
                         required
@@ -366,7 +369,7 @@ export default function SettingsPage() {
                         <option value="" disabled>Select gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
-                      </select>
+                      </ValidatedSelect>
                     </div>
 
                     {profileMsg && <p className="text-xs text-emerald-700 font-semibold">{profileMsg}</p>}
@@ -411,9 +414,11 @@ export default function SettingsPage() {
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">Other role (optional)</label>
-                      <input
+                      <ValidatedInput
                         type="text"
                         value={customRole}
+                        maxLength={80}
+                        validate={value => selectedRoles.length === 0 && !value.trim() ? 'Choose a role or describe another role.' : ''}
                         onChange={(e) => setCustomRole(e.target.value)}
                         placeholder="e.g. Small business owner"
                         className="w-full bg-white border border-gray-300 rounded-lg px-3.5 py-2 text-xs text-gray-900"
@@ -421,12 +426,12 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">General region (optional)</label>
-                      <input type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Metro Manila" className="w-full bg-white border border-gray-300 rounded-lg px-3.5 py-2 text-xs text-gray-900" />
+                      <ValidatedInput type="text" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Metro Manila" className="w-full bg-white border border-gray-300 rounded-lg px-3.5 py-2 text-xs text-gray-900" />
                       <p className="mt-1 text-[10px] text-gray-400">Used only in aggregated administrator reports. Do not enter a street address.</p>
                     </div>
                   </div>
                 </div>
-              </form>
+              </ValidatedForm>
             </div>
 
             {/* Bottom Card: Account Summary matching Figma 1:1 */}
@@ -476,11 +481,12 @@ export default function SettingsPage() {
             <h2 className="text-base font-bold text-[#186849] mb-1">Income & Allowance Setup</h2>
             <p className="text-xs text-gray-400 mb-6">Manage expected income and the planning period. Safe-to-Spend uses only income recorded as received.</p>
 
-            <form onSubmit={handleSaveIncome} className="space-y-5">
+            <ValidatedForm onSubmit={handleSaveIncome} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Income Amount (₱)</label>
-                <input
+                <ValidatedInput
                   type="number"
+                  min="0.01" step="0.01" max="999999999999.99"
                   value={income}
                   onChange={(e) => setIncome(e.target.value)}
                   className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition"
@@ -527,7 +533,7 @@ export default function SettingsPage() {
               >
                 {incomeLoading ? "Saving..." : "Save Income Plan"}
               </button>
-            </form>
+            </ValidatedForm>
           </div>
         )}
 
@@ -537,7 +543,7 @@ export default function SettingsPage() {
             <h2 className="text-base font-bold text-[#186849] mb-1">Preferences</h2>
             <p className="text-xs text-gray-400 mb-6">Manage notification and budget alert preferences.</p>
 
-            <form onSubmit={handleSavePref} className="space-y-4">
+            <ValidatedForm onSubmit={handleSavePref} className="space-y-4">
               <label className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-800 hover:bg-gray-50 cursor-pointer">
                 <div>
                   <p>Budget Threshold Alerts</p>
@@ -572,7 +578,7 @@ export default function SettingsPage() {
               >
                 Save Preferences
               </button>
-            </form>
+            </ValidatedForm>
           </div>
         )}
 
@@ -649,10 +655,10 @@ export default function SettingsPage() {
             </div>
 
             <p id="delete-account-description" className="mt-3 text-sm leading-6 text-gray-600">
-              Your profile, wallets, transactions, budgets, goals, obligations, and other financial records will be permanently removed. Any PayMongo subscription must be cancelled first; if cancellation fails, your account will remain available. This cannot be undone.
+              Your personal profile and financial records will be permanently removed. Shared contribution history remains for the group under “Former member”; profiles you own become read-only archives. Any PayMongo subscription must be cancelled first; if cancellation fails, your account will remain available. This cannot be undone.
             </p>
 
-            <form
+            <ValidatedForm
               className="mt-5 space-y-4"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -661,7 +667,7 @@ export default function SettingsPage() {
             >
               {user?.authMethod !== "GOOGLE" && <div>
                 <label htmlFor="delete-password" className="field-label">Current password</label>
-                <input
+                <ValidatedInput
                   id="delete-password"
                   type="password"
                   value={deletePassword}
@@ -675,13 +681,14 @@ export default function SettingsPage() {
               {user?.authMethod === "GOOGLE" && <p className="rounded-xl bg-blue-50 p-3 text-xs text-blue-800">You signed in with Google. Your current authenticated session confirms your identity.</p>}
               <div>
                 <label htmlFor="delete-confirm" className="field-label">Type DELETE to confirm</label>
-                <input
+                <ValidatedInput
                   id="delete-confirm"
                   type="text"
                   value={deleteConfirm}
                   onChange={(event) => setDeleteConfirm(event.target.value)}
                   className="modal-input"
                   placeholder="DELETE"
+                  validate={value => value !== 'DELETE' ? 'Type DELETE exactly to confirm.' : ''}
                   required
                 />
               </div>
@@ -696,7 +703,7 @@ export default function SettingsPage() {
                   {deleting ? "Deleting..." : "Delete permanently"}
                 </button>
               </div>
-            </form>
+            </ValidatedForm>
           </section>
         </div>
       )}

@@ -8,6 +8,7 @@ import apiClient from "@/lib/apiClient";
 import { CATEGORIES } from "@/constants";
 import { transactionService } from "@/services/transactionService";
 import WalletSelector from "@/app/components/WalletSelector";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from '@/app/components/ui/ValidatedForm';
 
 type ReceiptTransactionType = "expense" | "income" | "";
 
@@ -178,7 +179,7 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
                 <p className="mt-1 text-xs text-emerald-700/70">Google Gemini is reading the image. Casha-Ba does not save it.</p>
               </div>
             ) : draft ? (
-              <div className="space-y-4">
+              <ValidatedForm onSubmit={event => { event.preventDefault(); void saveTransaction(); }} className="space-y-4">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
                   AI can make mistakes. Review every field before recording the transaction.
                   {!draft.type && <p className="mt-1 font-semibold">Choose income or expense; the direction was unclear.</p>}
@@ -195,31 +196,31 @@ export default function ReceiptScanner({ onTransactionCreated }: ReceiptScannerP
 
                 <div>
                   <label className="field-label">Merchant or description</label>
-                  <input value={draft.description} maxLength={200} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="field-input" />
+                  <ValidatedInput aria-label="Merchant or description" required value={draft.description} maxLength={200} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="field-input" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">Amount</label>
-                    <input type="number" min="0.01" step="0.01" value={draft.amount} onChange={(event) => setDraft({ ...draft, amount: event.target.value })} className="field-input" />
+                    <ValidatedInput aria-label="Receipt amount" required type="number" min="0.01" max="999999999999.99" step="0.01" value={draft.amount} onChange={(event) => setDraft({ ...draft, amount: event.target.value })} className="field-input" />
                   </div>
                   <div>
                     <label className="field-label">Date</label>
-                    <input type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} className="field-input" />
+                    <ValidatedInput aria-label="Receipt date" required type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} className="field-input" />
                   </div>
                 </div>
                 <div>
                   <label className="field-label">Category</label>
-                  <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} className="field-input">
+                  <ValidatedSelect aria-label="Receipt category" required value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} className="field-input">
                     {categoriesFor(draft.type).map((category) => <option key={category}>{category}</option>)}
-                  </select>
+                  </ValidatedSelect>
                 </div>
                 <WalletSelector value={walletId} onChange={setWalletId} label={draft.type === "income" ? "Account receiving funds" : "Account charged"} />
 
-                <button type="button" onClick={() => void saveTransaction()} disabled={saving || !draft.type || !draft.date || !walletId || !draft.description.trim() || !Number.isFinite(Number(draft.amount)) || Number(draft.amount) <= 0} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 py-3 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="submit" disabled={saving || !draft.type} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 py-3 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
                   {saving ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ScanLine className="h-4 w-4" aria-hidden="true" />}
                   {saving ? "Recording…" : "Review complete — record transaction"}
                 </button>
-              </div>
+              </ValidatedForm>
             ) : null}
           </div>
         </div>

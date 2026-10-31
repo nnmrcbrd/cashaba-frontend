@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -108,7 +109,7 @@ export default function OnboardingBudgetPage() {
       onBack={() => router.push(ROUTES.ONBOARDING_RECURRING)}
       onSkip={() => void finishWithoutPlan()}
     >
-      <form onSubmit={handleFinish} className="space-y-5">
+      <ValidatedForm onSubmit={handleFinish} className="space-y-5">
         <section className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center"><div><p className="text-[10px] font-bold uppercase text-emerald-700">Income</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.income.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-amber-700">Obligations</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.obligations.toLocaleString()}</p></div><div><p className="text-[10px] font-bold uppercase text-blue-700">Remaining</p><p className="mt-1 text-sm font-extrabold text-slate-900">₱{review.safeToSpend.toLocaleString()}</p></div>{review.obligations > review.income && <p className="col-span-3 mt-2 rounded-lg bg-red-50 p-2 text-xs font-semibold text-red-700">Your obligations exceed your configured income. Reduce commitments before finishing.</p>}</section>
         <section className="rounded-2xl border border-slate-200 p-5">
           <div className="flex gap-3">
@@ -123,7 +124,7 @@ export default function OnboardingBudgetPage() {
           <label htmlFor="budget-limit" className="sr-only">Monthly spending limit</label>
           <div className="relative mt-4">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-emerald-800">₱</span>
-            <input
+            <ValidatedInput
               id="budget-limit"
               className={`${onboardingInputClass} pl-10 text-base font-semibold`}
               type="number"
@@ -153,12 +154,13 @@ export default function OnboardingBudgetPage() {
           <div className="mt-4 space-y-4">
             <div>
               <label htmlFor="goal-name" className="text-xs font-semibold text-slate-700">Goal name</label>
-              <input
+              <ValidatedInput
                 id="goal-name"
                 className={`${onboardingInputClass} mt-2`}
                 type="text"
                 placeholder={`e.g. ${suggestedGoal}`}
                 value={goalName}
+                required={Boolean(targetAmount || monthlyAllocation)}
                 onChange={(event) => setGoalName(event.target.value)}
                 maxLength={80}
               />
@@ -166,6 +168,8 @@ export default function OnboardingBudgetPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <CurrencyField
                 id="target-amount"
+                required={Boolean(goalName.trim() || monthlyAllocation)}
+                min="0.01"
                 label="Target amount"
                 placeholder="10,000.00"
                 value={targetAmount}
@@ -192,7 +196,7 @@ export default function OnboardingBudgetPage() {
           {loading ? "Completing setup..." : "Finish and open dashboard"}
           {!loading && <ArrowRight size={17} />}
         </button>
-      </form>
+      </ValidatedForm>
     </OnboardingShell>
   );
 }
@@ -203,19 +207,23 @@ function CurrencyField({
   placeholder,
   value,
   onChange,
+  required = false,
+  min = '0',
 }: {
   id: string;
   label: string;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
+  required?: boolean;
+  min?: string;
 }) {
   return (
     <div>
       <label htmlFor={id} className="text-xs font-semibold text-slate-700">{label}</label>
       <div className="relative mt-2">
         <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-emerald-800">₱</span>
-        <input
+        <ValidatedInput
           id={id}
           className={`${onboardingInputClass} pl-8`}
           type="number"
@@ -223,7 +231,9 @@ function CurrencyField({
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          min="0"
+          min={min}
+          max="999999999999.99"
+          required={required}
           step="0.01"
         />
       </div>

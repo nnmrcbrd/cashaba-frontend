@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useState, useEffect } from "react";
 import Sidebar from "../components/ui/sidebar";
@@ -264,11 +265,13 @@ export default function BudgetPage() {
             {/* Target Budget Form */}
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm max-w-md">
               <h3 className="mb-2 text-xs font-bold text-gray-800">Update Target Monthly Budget</h3>
-              <form onSubmit={handleUpdateBudget} className="flex min-w-0 flex-col gap-3 sm:flex-row">
-                <input
+              <ValidatedForm onSubmit={handleUpdateBudget} className="min-w-0">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
+                <ValidatedInput
                   type="number"
                   className="min-w-0 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="New monthly target (₱)"
+                  min="0.01" step="0.01" max="999999999999.99"
                   value={newTarget}
                   onChange={(e) => setNewTarget(e.target.value)}
                   required
@@ -280,15 +283,16 @@ export default function BudgetPage() {
                 >
                   {updating ? "Saving..." : "Update"}
                 </button>
-              </form>
+              </div>
               <div className="mt-5 border-t border-gray-100 pt-4">
                 <h4 className="text-xs font-bold text-gray-800">Planned category limits</h4>
                 <p className="mt-1 text-[10px] text-gray-500">Set your own limits</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {CATEGORIES.EXPENSE.map((category) => <label key={category} className="text-[10px] font-semibold text-gray-600">{category}<input type="number" min="0" step="0.01" value={categoryLimits[category] || ""} onChange={(event) => setCategoryLimits((current) => ({ ...current, [category]: event.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs" placeholder="0.00" /></label>)}
+                  {CATEGORIES.EXPENSE.map((category) => <label key={category} className="text-[10px] font-semibold text-gray-600">{category}<ValidatedInput aria-label={`${category} limit`} type="number" min="0" max="999999999999.99" step="0.01" value={categoryLimits[category] || ""} onChange={(event) => setCategoryLimits((current) => ({ ...current, [category]: event.target.value }))} className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs" placeholder="0.00" /></label>)}
                 </div>
-                <button type="button" onClick={() => void handleUpdateBudget()} disabled={updating || !newTarget} className="mt-4 w-full rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white disabled:opacity-50">Save budget and category limits</button>
+                <button type="submit" disabled={updating} className="mt-4 w-full rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white disabled:opacity-50">Save budget and category limits</button>
               </div>
+              </ValidatedForm>
             </div>
           </div>
         ) : (
@@ -357,11 +361,11 @@ function AddGoalModal({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/30 px-4 z-50">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg text-xs">
+      <ValidatedForm onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg text-xs">
         <h2 className="mb-4 text-sm font-bold text-gray-900">Add Savings Goal</h2>
 
         <label className="mb-1 block font-semibold text-gray-700">Goal Name</label>
-        <input
+        <ValidatedInput
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
           placeholder="e.g. Emergency Fund, New Laptop"
           value={name}
@@ -370,20 +374,22 @@ function AddGoalModal({
         />
 
         <label className="mb-1 block font-semibold text-gray-700">Target Amount (₱)</label>
-        <input
+        <ValidatedInput
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
           type="number"
           placeholder="50000"
+          min="0.01" max="999999999999.99" step="0.01"
           value={targetAmount}
           onChange={(e) => setTargetAmount(e.target.value)}
           required
         />
 
         <label className="mb-1 block font-semibold text-gray-700">Monthly Allocation (₱)</label>
-        <input
+        <ValidatedInput
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-6 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
           type="number"
           placeholder="2000 (Deducted from Safe-to-Spend)"
+          min="0" max="999999999999.99" step="0.01"
           value={monthlyAllocation}
           onChange={(e) => setMonthlyAllocation(e.target.value)}
         />
@@ -396,7 +402,7 @@ function AddGoalModal({
             Save Goal
           </button>
         </div>
-      </form>
+      </ValidatedForm>
     </div>
   );
 }
@@ -421,15 +427,16 @@ function DepositModal({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/30 px-4 z-50">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg text-xs">
+      <ValidatedForm onSubmit={handleSubmit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg text-xs">
         <h2 className="mb-1 text-sm font-bold text-gray-900">Add Funds to &quot;{goal.name}&quot;</h2>
         <p className="text-gray-500 text-[11px] mb-4">Current saved: ₱{goal.currentAmount.toLocaleString()}</p>
 
         <label className="mb-1 block font-semibold text-gray-700">Deposit Amount (₱)</label>
-        <input
+        <ValidatedInput
           className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 mb-6 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
           type="number"
           placeholder="1000"
+          min="0.01" max="999999999999.99" step="0.01"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           required
@@ -444,7 +451,7 @@ function DepositModal({
             Confirm Deposit
           </button>
         </div>
-      </form>
+      </ValidatedForm>
     </div>
   );
 }

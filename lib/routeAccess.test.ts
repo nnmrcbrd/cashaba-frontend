@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getRouteAccess } from './routeAccess';
 
 test('mobile trailing-slash URLs retain authentication and role protection', () => {
-  for (const path of ['/accounts', '/dashboard', '/settings', '/transactions', '/onboarding/role', '/subscription', '/admin/manage-users']) {
+  for (const path of ['/accounts', '/dashboard', '/settings', '/transactions', '/onboarding/role', '/subscription', '/shared-savings', '/admin/manage-users']) {
     assert.equal(getRouteAccess(path).isProtected, true);
     assert.deepEqual(getRouteAccess(`${path}/`), getRouteAccess(path));
   }

@@ -23,6 +23,7 @@ export const ROUTES = {
   AI_ASSISTANT: "/ai-assistant",
   SETTINGS: "/settings",
   SUBSCRIPTION: "/subscription",
+  SHARED_SAVINGS: "/shared-savings",
   ADMIN_MANAGE_USERS: "/admin/manage-users",
   ADMIN_ACTIVITY_LOGS: "/admin/activity-logs",
 };
@@ -49,6 +50,7 @@ export const NAV_ITEMS = [
   { label: "Wallet & Accounts", href: ROUTES.ACCOUNTS },
   { label: "Transaction History", href: ROUTES.TRANSACTIONS },
   { label: "Budget & Goals", href: ROUTES.BUDGET },
+  { label: "Shared Savings", href: ROUTES.SHARED_SAVINGS },
   { label: "Debts & Loans", href: ROUTES.LOANS },
   { label: "AI Assistant", href: ROUTES.AI_ASSISTANT },
   { label: "Financial Review", href: ROUTES.ANALYTICS },
@@ -69,6 +71,7 @@ export const NAV_GROUPS = [
     label: "Planning",
     items: [
       { label: "Budget & Goals", href: ROUTES.BUDGET },
+      { label: "Shared Savings", href: ROUTES.SHARED_SAVINGS },
       { label: "Obligations & Debts", href: ROUTES.LOANS },
     ],
   },

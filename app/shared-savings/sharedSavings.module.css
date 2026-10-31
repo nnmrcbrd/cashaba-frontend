@@ -1,0 +1,19 @@
+.layout { display: grid; gap: 1.5rem; align-items: start; }
+.card { border: 1px solid #dbe5df; border-radius: 1.25rem; padding: 1.25rem; background: #fff; min-width: 0; }
+.profileList { display: flex; flex-direction: column; gap: .5rem; }
+.profileButton { border: 1px solid #dbe5df; border-radius: .8rem; padding: .9rem; text-align: left; width: 100%; }
+.selected { background: #ecfdf5; border-color: #0b6b4f; }
+.input { width: 100%; margin-top: .4rem; border: 1px solid #cbd5e1; border-radius: .65rem; padding: .7rem .85rem; background: #fff; font-size: .875rem; }
+.primary { border-radius: .7rem; background: #0b6b4f; color: white; padding: .7rem 1rem; font-size: .8rem; font-weight: 650; }
+.secondary { border-radius: .7rem; border: 1px solid #cbd5e1; padding: .65rem .85rem; font-size: .8rem; font-weight: 600; }
+.primary:disabled, .secondary:disabled { opacity: .5; cursor: wait; }
+.progress { height: .5rem; background: #e2e8f0; border-radius: 1rem; overflow: hidden; margin: .8rem 0; }
+.progress > div { height: 100%; background: #0b6b4f; }
+.table { width: 100%; border-collapse: collapse; font-size: .75rem; text-align: left; }
+.table th, .table td { padding: .7rem .5rem; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+.table th { font-weight: 600; color: #64748b; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.forms { display: grid; gap: 1.25rem; }
+@media (min-width: 70rem) { .layout { grid-template-columns: 16rem minmax(0, 1fr); } .forms { grid-template-columns: 1fr 1fr; } }
+:global(.dark) .card, :global(.dark) .input { background: #14211e; border-color: #34473e; color: #e2e8f0; }
+:global(.dark) .selected { background: #193c30; }

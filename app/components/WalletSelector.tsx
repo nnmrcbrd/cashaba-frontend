@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedSelect } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import { walletService } from "@/services/walletService";
@@ -31,7 +32,7 @@ export default function WalletSelector({ value, onChange, label = "Account / pay
       {loading ? (
         <div className="h-10 animate-pulse rounded-xl bg-gray-100" />
       ) : (
-        <select
+        <ValidatedSelect
           value={value || ""}
           onChange={(event) => onChange(event.target.value || null)}
           required={required}
@@ -43,7 +44,7 @@ export default function WalletSelector({ value, onChange, label = "Account / pay
               {wallet.name}{wallet.institution ? ` - ${wallet.institution}` : ""}
             </option>
           ))}
-        </select>
+        </ValidatedSelect>
       )}
       {!loading && wallets.length === 0 && (
         <p className="mt-1 text-[10px] text-gray-400">Create an account from Wallet & Accounts to assign transactions.</p>

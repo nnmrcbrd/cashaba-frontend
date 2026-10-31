@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import Sidebar from "@/app/components/ui/sidebar";
@@ -83,7 +84,7 @@ function Status({ status }: { status: string }) { const tone = status === "OVERD
 
 function BillModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => Promise<void> }) {
   const [name, setName] = useState(""); const [amount, setAmount] = useState(""); const [dueDate, setDueDate] = useState(""); const [frequency, setFrequency] = useState<FixedExpense["frequency"]>("MONTHLY"); const [category, setCategory] = useState("Bills");
-  return <Modal title="Add obligation" onClose={onClose}><form onSubmit={async (event) => { event.preventDefault(); await incomeSetupService.addFixedExpense(name, Number(amount), dueDate, { frequency, category }); await onSaved(); }}><Field label="Name"><input value={name} onChange={(event) => setName(event.target.value)} required className="modal-input" /></Field><div className="grid grid-cols-2 gap-3"><Field label="Amount"><input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="modal-input" /></Field><Field label="Due date"><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required className="modal-input" /></Field></div><div className="grid grid-cols-2 gap-3"><Field label="Frequency"><select value={frequency} onChange={(event) => setFrequency(event.target.value as FixedExpense["frequency"])} className="modal-input"><option>ONE_TIME</option><option>WEEKLY</option><option>MONTHLY</option><option>QUARTERLY</option><option>YEARLY</option></select></Field><Field label="Category"><input value={category} onChange={(event) => setCategory(event.target.value)} required className="modal-input" /></Field></div><SubmitButtons onClose={onClose} label="Create obligation" /></form></Modal>;
+  return <Modal title="Add obligation" onClose={onClose}><ValidatedForm onSubmit={async (event) => { event.preventDefault(); await incomeSetupService.addFixedExpense(name, Number(amount), dueDate, { frequency, category }); await onSaved(); }}><Field label="Name"><ValidatedInput value={name} onChange={(event) => setName(event.target.value)} required className="modal-input" /></Field><div className="grid grid-cols-2 gap-3"><Field label="Amount"><ValidatedInput type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="modal-input" /></Field><Field label="Due date"><ValidatedInput type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required className="modal-input" /></Field></div><div className="grid grid-cols-2 gap-3"><Field label="Frequency"><ValidatedSelect value={frequency} onChange={(event) => setFrequency(event.target.value as FixedExpense["frequency"])} className="modal-input"><option>ONE_TIME</option><option>WEEKLY</option><option>MONTHLY</option><option>QUARTERLY</option><option>YEARLY</option></ValidatedSelect></Field><Field label="Category"><ValidatedInput value={category} onChange={(event) => setCategory(event.target.value)} required className="modal-input" /></Field></div><SubmitButtons onClose={onClose} label="Create obligation" /></ValidatedForm></Modal>;
 }
 function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => Promise<void> }) {
   const [title, setTitle] = useState(""); const [amount, setAmount] = useState(""); const [repayment, setRepayment] = useState(""); const [deadline, setDeadline] = useState(""); const [type, setType] = useState<"BORROWED" | "LENT">("BORROWED"); const [frequency, setFrequency] = useState<"ONE_TIME" | "WEEKLY" | "MONTHLY">("MONTHLY");
@@ -91,7 +92,7 @@ function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => P
   const [alreadyIncluded, setAlreadyIncluded] = useState(false);
   const isOneTime = frequency === "ONE_TIME";
   return <Modal title="Record borrowed or lent money" onClose={onClose}>
-    <form onSubmit={async (event) => {
+    <ValidatedForm onSubmit={async (event) => {
       event.preventDefault();
       if (!walletId && !alreadyIncluded) return;
       await loanService.createLoan({
@@ -107,33 +108,33 @@ function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => P
       await onSaved();
     }}>
       <Field label="Title or person">
-        <input value={title} onChange={(event) => setTitle(event.target.value)} required className="modal-input" />
+        <ValidatedInput value={title} onChange={(event) => setTitle(event.target.value)} required className="modal-input" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Direction">
-          <select value={type} onChange={(event) => setType(event.target.value as typeof type)} className="modal-input">
+          <ValidatedSelect value={type} onChange={(event) => setType(event.target.value as typeof type)} className="modal-input">
             <option value="BORROWED">I borrowed</option>
             <option value="LENT">I lent</option>
-          </select>
+          </ValidatedSelect>
         </Field>
         <Field label="Total amount">
-          <input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="modal-input" />
+          <ValidatedInput type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="modal-input" />
         </Field>
       </div>
       <div className={isOneTime ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
         <Field label="Frequency">
-          <select value={frequency} onChange={(event) => setFrequency(event.target.value as typeof frequency)} className="modal-input">
+          <ValidatedSelect value={frequency} onChange={(event) => setFrequency(event.target.value as typeof frequency)} className="modal-input">
             <option value="ONE_TIME">One time</option>
             <option value="WEEKLY">Weekly</option>
             <option value="MONTHLY">Monthly</option>
-          </select>
+          </ValidatedSelect>
         </Field>
         {!isOneTime && <Field label="Amount per payment">
-          <input type="number" min="0.01" step="0.01" value={repayment} onChange={(event) => setRepayment(event.target.value)} required className="modal-input" />
+          <ValidatedInput type="number" min="0.01" step="0.01" value={repayment} onChange={(event) => setRepayment(event.target.value)} required className="modal-input" />
         </Field>}
       </div>
       <Field label={isOneTime ? "Payment due date" : "Next due date"}>
-        <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} required className="modal-input" />
+        <ValidatedInput type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} required className="modal-input" />
       </Field>
       <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
         <input type="checkbox" checked={alreadyIncluded} onChange={(event) => setAlreadyIncluded(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-700" />
@@ -141,7 +142,7 @@ function DebtModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => P
       </label>
       {!alreadyIncluded && <WalletSelector value={walletId} onChange={setWalletId} kind="ASSET" label={type === "BORROWED" ? "Account that received the money" : "Account the money came from"} />}
       <SubmitButtons onClose={onClose} label="Record debt" />
-    </form>
+    </ValidatedForm>
   </Modal>;
 }
 function BillAmountModal({ bill, onClose, onSaved }: { bill: FixedExpense; onClose: () => void; onSaved: () => Promise<void> }) {
@@ -149,7 +150,7 @@ function BillAmountModal({ bill, onClose, onSaved }: { bill: FixedExpense; onClo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   return <Modal title={`Edit bill amount: ${bill.name}`} onClose={onClose}>
-    <form onSubmit={async (event) => {
+    <ValidatedForm onSubmit={async (event) => {
       event.preventDefault();
       setError("");
       setSaving(true);
@@ -161,17 +162,17 @@ function BillAmountModal({ bill, onClose, onSaved }: { bill: FixedExpense; onClo
       } finally { setSaving(false); }
     }}>
       <p className="mb-4 text-xs leading-5 text-gray-500">The onboarding amount is an estimate. Enter the actual bill amount, whether it is higher or lower. This updates the current bill and the estimate for future bills.</p>
-      <Field label="Bill amount"><input type="number" min={Math.max(0.01, bill.amountPaid)} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="modal-input [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></Field>
+      <Field label="Bill amount"><ValidatedInput type="number" min={Math.max(0.01, bill.amountPaid)} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="modal-input [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></Field>
       <div className="mt-3 space-y-1 text-xs text-gray-500"><p>Already paid: ₱{bill.amountPaid.toLocaleString()}</p><p>Remaining after update: <strong className="text-emerald-700">₱{Math.max(0, Number(amount) - bill.amountPaid).toLocaleString()}</strong></p></div>
       {error && <p role="alert" className="mt-3 text-xs text-red-600">{error}</p>}
       <div className="mt-5 flex gap-3"><button type="button" onClick={onClose} disabled={saving} className="flex-1 rounded-xl border py-2.5 text-xs font-bold">Cancel</button><button type="submit" disabled={saving} className="flex-1 rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white disabled:opacity-50">{saving ? "Saving…" : "Save bill amount"}</button></div>
-    </form>
+    </ValidatedForm>
   </Modal>;
 }
 function PaymentModal({ title, remaining, billAmountPaid, action, onClose, onSave, onEditBill }: { title: string; remaining: number; billAmountPaid?: number; action: string; onClose: () => void; onSave: (amount: number, date: string, walletId: string) => Promise<void>; onEditBill?: () => void }) {
   const [amount, setAmount] = useState(String(remaining)); const [date, setDate] = useState(new Date().toISOString().slice(0, 10)); const [walletId, setWalletId] = useState<string | null>(null); const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  return <Modal title={`${action}: ${title}`} onClose={onClose}><form onSubmit={async (event) => { event.preventDefault(); if (!walletId || saving) return; setError(""); setSaving(true); try { await onSave(Number(amount), date, walletId); } catch (error) { setError(axios.isAxiosError<{ message?: string }>(error) ? error.response?.data?.message || "Could not record the payment. Please try again." : "Could not record the payment. Please try again."); } finally { setSaving(false); } }}><p className="mb-4 text-xs text-gray-500">Remaining ₱{remaining.toLocaleString()}</p>{onEditBill && <p className="mb-4 text-xs leading-5 text-gray-500">If your payment is higher than the remaining amount, this bill’s total will update automatically when you pay. You can also <button type="button" onClick={onEditBill} disabled={saving} className="font-bold text-emerald-700 underline">Edit bill amount</button> separately.</p>}<Field label="Amount"><input type="number" min="0.01" max={billAmountPaid === undefined ? remaining : undefined} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className={onEditBill ? "modal-input [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : "modal-input"} /></Field>{billAmountPaid !== undefined && Number(amount) > remaining && <p className="mb-3 text-xs leading-5 text-emerald-700">New bill total: <strong>₱{((Math.round(billAmountPaid * 100) + Math.round(Number(amount) * 100)) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (already paid plus this payment).</p>}<Field label="Date"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} required className="modal-input" /></Field><WalletSelector value={walletId} onChange={setWalletId} />{error && <p role="alert" className="mt-3 text-xs text-red-600">{error}</p>}<div className="mt-5 flex gap-3"><button type="button" onClick={onClose} disabled={saving} className="flex-1 rounded-xl border py-2.5 font-bold">Cancel</button><button type="submit" disabled={!walletId || saving} className="flex-1 rounded-xl bg-emerald-700 py-2.5 font-bold text-white disabled:opacity-50">{saving ? "Saving…" : action}</button></div></form></Modal>;
+  return <Modal title={`${action}: ${title}`} onClose={onClose}><ValidatedForm onSubmit={async (event) => { event.preventDefault(); if (!walletId || saving) return; setError(""); setSaving(true); try { await onSave(Number(amount), date, walletId); } catch (error) { setError(axios.isAxiosError<{ message?: string }>(error) ? error.response?.data?.message || "Could not record the payment. Please try again." : "Could not record the payment. Please try again."); } finally { setSaving(false); } }}><p className="mb-4 text-xs text-gray-500">Remaining ₱{remaining.toLocaleString()}</p>{onEditBill && <p className="mb-4 text-xs leading-5 text-gray-500">If your payment is higher than the remaining amount, this bill’s total will update automatically when you pay. You can also <button type="button" onClick={onEditBill} disabled={saving} className="font-bold text-emerald-700 underline">Edit bill amount</button> separately.</p>}<Field label="Amount"><ValidatedInput type="number" min="0.01" max={billAmountPaid === undefined ? remaining : undefined} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className={onEditBill ? "modal-input [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : "modal-input"} /></Field>{billAmountPaid !== undefined && Number(amount) > remaining && <p className="mb-3 text-xs leading-5 text-emerald-700">New bill total: <strong>₱{((Math.round(billAmountPaid * 100) + Math.round(Number(amount) * 100)) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (already paid plus this payment).</p>}<Field label="Date"><ValidatedInput type="date" value={date} onChange={(event) => setDate(event.target.value)} required className="modal-input" /></Field><WalletSelector value={walletId} onChange={setWalletId} />{error && <p role="alert" className="mt-3 text-xs text-red-600">{error}</p>}<div className="mt-5 flex gap-3"><button type="button" onClick={onClose} disabled={saving} className="flex-1 rounded-xl border py-2.5 font-bold">Cancel</button><button type="submit" disabled={!walletId || saving} className="flex-1 rounded-xl bg-emerald-700 py-2.5 font-bold text-white disabled:opacity-50">{saving ? "Saving…" : action}</button></div></ValidatedForm></Modal>;
 }
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) { return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4"><section className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><div className="mb-5 flex justify-between"><h2 className="text-lg font-bold">{title}</h2><button onClick={onClose} className="text-gray-400">✕</button></div>{children}</section></div>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="mb-3 block text-xs font-semibold text-gray-700">{label}{children}</label>; }

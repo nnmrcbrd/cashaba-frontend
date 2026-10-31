@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -54,13 +55,13 @@ export default function OnboardingIncomePage() {
       asideDescription="Choose the period that matches how you normally receive or plan your income. Calculations will follow that period."
       onBack={() => router.push(ROUTES.ONBOARDING_ROLE)}
     >
-      <form onSubmit={handleFinish}>
+      <ValidatedForm onSubmit={handleFinish}>
         <label htmlFor="income" className="text-xs font-semibold text-slate-700">
           Income or allowance per period
         </label>
         <div className="relative mt-2">
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-emerald-800">₱</span>
-          <input
+          <ValidatedInput
             id="income"
             className={`${onboardingInputClass} pl-10 text-lg font-semibold`}
             type="number"
@@ -117,7 +118,7 @@ export default function OnboardingIncomePage() {
           {loading ? "Saving income..." : "Continue to obligations"}
           {!loading && <ArrowRight size={17} />}
         </button>
-      </form>
+      </ValidatedForm>
     </OnboardingShell>
   );
 }

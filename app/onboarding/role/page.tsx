@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -48,15 +49,9 @@ export default function OnboardingRolePage() {
 
     setSaving(true);
     setError("");
-    const nameParts = user.name.trim().split(/\s+/);
-    const firstName = nameParts.shift() || "User";
-    const lastName = nameParts.join(" ") || "User";
-
     try {
+      // Selecting a profile type must preserve the name saved at signup.
       await apiClient.patch("/users/me", {
-        firstName,
-        lastName,
-        gender: user.gender || null,
         roles: selected.map((role) => role.toUpperCase()),
         customRole: customRole.trim() || null,
       });
@@ -77,7 +72,7 @@ export default function OnboardingRolePage() {
       asideTitle="Start with the way you manage money."
       asideDescription="Your profile type provides context for the setup experience. It does not change your access or lock features behind a plan."
     >
-      <form onSubmit={handleContinue}>
+      <ValidatedForm onSubmit={handleContinue}>
         <fieldset>
           <legend className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
             Select all that apply
@@ -119,7 +114,7 @@ export default function OnboardingRolePage() {
         </fieldset>
         <div className="mt-4">
           <label htmlFor="custom-role" className="text-xs font-semibold text-slate-700">Another role (optional)</label>
-          <input id="custom-role" value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={80} placeholder="e.g. Small business owner or homemaker" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" />
+          <ValidatedInput id="custom-role" value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={80} placeholder="e.g. Small business owner or homemaker" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100" />
         </div>
 
         {error && (
@@ -136,7 +131,7 @@ export default function OnboardingRolePage() {
           {saving ? "Saving profile..." : "Continue to income"}
           {!saving && <ArrowRight size={17} />}
         </button>
-      </form>
+      </ValidatedForm>
     </OnboardingShell>
   );
 }

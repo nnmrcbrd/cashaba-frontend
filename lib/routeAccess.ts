@@ -3,7 +3,7 @@ const protectedRoutes = new Set([
   '/accounts', '/admin/appearance', '/admin/manage-users', '/admin/activity-logs',
   '/ai-assistant', '/analytics', '/budget', '/change-password', '/dashboard',
   '/loans', '/obligations', '/onboarding/budget', '/onboarding/income',
-  '/onboarding/recurring', '/onboarding/role', '/settings', '/subscription', '/transactions',
+  '/onboarding/recurring', '/onboarding/role', '/settings', '/subscription', '/transactions', '/shared-savings',
 ]);
 
 export function normalizeAppPathname(pathname: string): string {

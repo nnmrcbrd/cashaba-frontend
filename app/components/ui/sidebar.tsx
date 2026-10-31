@@ -21,6 +21,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   [ROUTES.ACCOUNTS]: WalletCards,
   [ROUTES.TRANSACTIONS]: History,
   [ROUTES.BUDGET]: Target,
+  [ROUTES.SHARED_SAVINGS]: Users,
   [ROUTES.LOANS]: HandCoins,
   [ROUTES.AI_ASSISTANT]: Bot,
   [ROUTES.ANALYTICS]: BarChart3,
@@ -235,7 +236,7 @@ export default function Sidebar({ variant = "user" }: { variant?: "user" | "admi
             );
           })}
           {!isAdmin && <div className="casha-sidebar__secondary">
-            {navLink(ROUTES.SUBSCRIPTION, "Casha-Ba Plus")}
+            {navLink(ROUTES.SUBSCRIPTION, "Casha-Ba Pro")}
             {navLink(ROUTES.SETTINGS, "Settings")}
           </div>}
         </nav>
