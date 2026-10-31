@@ -1,14 +1,17 @@
 "use client";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from "@/app/components/ui/ValidatedForm";
 
 import { useState } from "react";
 import { AlertCircle, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/context/Authcontext";
 import PasswordInput from "./PasswordInput";
 import { EmailOtpForm } from "./EmailOtpForm";
+import { nameError } from '@/lib/fieldValidation';
 
 export default function SignupForm() {
-  const { signup, signupError } = useAuth();
+  const { signup, signupError, signupFieldErrors, clearSignupFieldError } = useAuth();
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
@@ -43,7 +46,7 @@ export default function SignupForm() {
       return;
     }
     setLoading(true);
-    const successful = await signup(firstName.trim(), lastName.trim(), email.trim(), password, gender);
+    const successful = await signup(firstName.trim(), middleName.trim(), lastName.trim(), email.trim(), password, gender);
     setLoading(false);
     if (successful) setVerification(successful);
   }
@@ -51,35 +54,40 @@ export default function SignupForm() {
   if (verification) return <EmailOtpForm purpose="verification" initialEmail={verification.email} initialChallengeId={verification.challengeId} />;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>
+    <ValidatedForm onSubmit={handleSubmit} className="space-y-3.5" noValidate>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="firstName" className="mb-1.5 block text-sm font-semibold text-slate-700">First name</label>
-          <input id="firstName" value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" required className="h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
+          <ValidatedInput id="firstName" value={firstName} onChange={(event) => setFirstName(event.target.value)} validate={nameError} maxLength={80} autoComplete="given-name" required className="h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
+        </div>
+         <div>
+          <label htmlFor="middleName" className="mb-1.5 block text-sm font-semibold text-slate-700">Middle name <span className="font-normal text-slate-500">(optional)</span></label>
+          <ValidatedInput id="middleName" value={middleName} onChange={(event) => setMiddleName(event.target.value)} validate={value => nameError(value, false)} maxLength={80} autoComplete="additional-name" className="h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
         </div>
         <div>
           <label htmlFor="lastName" className="mb-1.5 block text-sm font-semibold text-slate-700">Last name</label>
-          <input id="lastName" value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" required className="h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
+          <ValidatedInput id="lastName" value={lastName} onChange={(event) => setLastName(event.target.value)} validate={nameError} maxLength={80} autoComplete="family-name" required className="h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="gender" className="mb-1.5 block text-sm font-semibold text-slate-700">Gender</label>
-          <select id="gender" value={gender} onChange={(event) => setGender(event.target.value)} required className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10">
+          <ValidatedSelect id="gender" value={gender} onChange={(event) => setGender(event.target.value)} required className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10">
             <option value="" disabled>Select gender</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
-          </select>
+          </ValidatedSelect>
         </div>
 
         <div>
           <label htmlFor="signupEmail" className="mb-1.5 block text-sm font-semibold text-slate-700">Email address</label>
-          <input
+          <ValidatedInput
             id="signupEmail"
+            error={signupFieldErrors.email}
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => { setEmail(event.target.value); clearSignupFieldError('email'); }}
             onBlur={() => setEmailTouched(true)}
             autoComplete="email"
             placeholder="you@example.com"
@@ -91,15 +99,13 @@ export default function SignupForm() {
                 : "border-slate-300 focus:border-[#0b6b4f] focus:ring-emerald-600/10"
             }`}
           />
-          {emailTouched && !emailValid && <p className="mt-1.5 text-xs text-red-600">Enter a valid email address.</p>}
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <PasswordInput id="signupPassword" label="Password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" placeholder="Create password" />
         <div>
-          <PasswordInput id="confirmPassword" label="Confirm password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" placeholder="Type it again" />
-          {confirmPassword && password !== confirmPassword && <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>}
+          <PasswordInput id="confirmPassword" label="Confirm password" value={confirmPassword} validate={value => value !== password ? 'Passwords do not match.' : ''} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" placeholder="Type it again" />
         </div>
       </div>
 
@@ -122,10 +128,10 @@ export default function SignupForm() {
         </div>
       )}
 
-      <button type="submit" disabled={loading || !firstName || !lastName || !gender || !email || !password || !confirmPassword} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white transition hover:bg-[#084f3b] disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" disabled={loading} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white transition hover:bg-[#084f3b] disabled:cursor-not-allowed disabled:opacity-60">
         {loading ? "Creating account..." : "Create account"}
         {!loading && <ArrowRight size={17} />}
       </button>
-    </form>
+    </ValidatedForm>
   );
 }

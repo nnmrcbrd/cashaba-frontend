@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { fieldError, passwordError } from '@/lib/fieldValidation';
 
 interface PasswordInputProps {
   id: string;
@@ -11,6 +12,7 @@ interface PasswordInputProps {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   autoComplete: "current-password" | "new-password" | "off";
   placeholder?: string;
+  validate?: (value: string) => string;
 }
 
 export default function PasswordInput({
@@ -21,19 +23,30 @@ export default function PasswordInput({
   onChange,
   autoComplete,
   placeholder,
+  validate,
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const message = validate?.(value) || (autoComplete === 'new-password' ? passwordError(value) : fieldError(value, { required: true }));
+  useLayoutEffect(() => { inputRef.current?.setCustomValidity(message); }, [message]);
 
   return (
     <div>
       {label && <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</label>}
       <div className="relative">
         <input
+          ref={inputRef}
           id={id}
           name={name}
           type={visible ? "text" : "password"}
           value={value}
           onChange={onChange}
+          onBlur={() => setTouched(true)}
+          onInvalid={event => { event.preventDefault(); setTouched(true); }}
+          aria-label={label || 'Password'}
+          aria-invalid={Boolean(touched && message)}
+          aria-describedby={touched && message ? `${id}-error` : undefined}
           autoComplete={autoComplete}
           placeholder={placeholder}
           minLength={autoComplete === "new-password" ? 8 : undefined}
@@ -56,6 +69,7 @@ export default function PasswordInput({
           {visible ? <EyeOff aria-hidden="true" size={19} /> : <Eye aria-hidden="true" size={19} />}
         </button>
       </div>
+      {touched && message && <p id={`${id}-error`} className="field-error" role="alert">{message}</p>}
     </div>
   );
 }

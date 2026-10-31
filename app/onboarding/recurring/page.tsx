@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -185,11 +186,11 @@ export default function OnboardingRecurringPage() {
         </div>
       </div>
 
-      <form onSubmit={handleAddExpense} className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+      <ValidatedForm onSubmit={handleAddExpense} className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="expense-name" className="text-xs font-semibold text-slate-700">Expense or bill name</label>
-            <input
+            <ValidatedInput
               id="expense-name"
               className={`${onboardingInputClass} mt-2`}
               type="text"
@@ -199,13 +200,13 @@ export default function OnboardingRecurringPage() {
               maxLength={80}
             />
           </div>
-          <div><label htmlFor="expense-due" className="text-xs font-semibold text-slate-700">Next due date</label><input id="expense-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className={`${onboardingInputClass} mt-2`} required /></div>
-          <div><label htmlFor="expense-frequency" className="text-xs font-semibold text-slate-700">Frequency</label><select id="expense-frequency" value={frequency} onChange={(event) => setFrequency(event.target.value as ExpenseItem["frequency"])} className={`${onboardingInputClass} mt-2`}><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="YEARLY">Yearly</option></select></div>
+          <div><label htmlFor="expense-due" className="text-xs font-semibold text-slate-700">Next due date</label><ValidatedInput id="expense-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className={`${onboardingInputClass} mt-2`} required /></div>
+          <div><label htmlFor="expense-frequency" className="text-xs font-semibold text-slate-700">Frequency</label><ValidatedSelect id="expense-frequency" value={frequency} onChange={(event) => setFrequency(event.target.value as ExpenseItem["frequency"])} className={`${onboardingInputClass} mt-2`}><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option><option value="QUARTERLY">Quarterly</option><option value="YEARLY">Yearly</option></ValidatedSelect></div>
           <div>
             <label htmlFor="expense-amount" className="text-xs font-semibold text-slate-700">Amount per period</label>
             <div className="relative mt-2">
               <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-emerald-800">₱</span>
-              <input
+              <ValidatedInput
                 id="expense-amount"
                 className={`${onboardingInputClass} pl-8`}
                 type="number"
@@ -226,7 +227,7 @@ export default function OnboardingRecurringPage() {
         >
           <Plus size={15} /> Add to recurring expenses
         </button>
-      </form>
+      </ValidatedForm>
 
       {items.length > 0 && (
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">

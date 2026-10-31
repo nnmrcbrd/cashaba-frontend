@@ -1,11 +1,11 @@
 import apiClient from '@/lib/apiClient';
 export type PaidPlan = 'BASIC' | 'STANDARD' | 'PREMIUM';
 export type SubscriptionPlan = 'FREE' | 'PLUS' | PaidPlan;
-export const planLabel = (plan: SubscriptionPlan) => ({ FREE: 'Free trial', PLUS: 'Plus (legacy)', BASIC: 'Basic', STANDARD: 'Standard', PREMIUM: 'Premium' })[plan];
-export interface PlanOption { id: PaidPlan; name: string; priceCents: number; aiRequests: number; receiptScans: number; currency: string; interval: string }
+export const planLabel = (plan: SubscriptionPlan) => ({ FREE: 'Free trial', PLUS: 'Plus (legacy)', BASIC: 'Basic', STANDARD: 'Standard', PREMIUM: 'Pro' })[plan];
+export interface PlanOption { id: PaidPlan; name: string; priceCents: number; aiRequests: number; receiptScans: number; currency: string; interval: string; sharedSavings?: boolean }
 export interface SubscriptionSummary {
   userId: string; checkoutState: 'PROCESSING' | 'READY' | 'UNCERTAIN' | 'CLOSED' | null;
-  plan: SubscriptionPlan; planName: string; accessStatus: 'TRIAL' | 'ACTIVE' | 'EXPIRED'; canWrite: boolean;
+  plan: SubscriptionPlan; planName: string; accessStatus: 'TRIAL' | 'ACTIVE' | 'EXPIRED'; canWrite: boolean; canShareSavings?: boolean;
   trialStartedAt: string; trialEndsAt: string; trialDaysRemaining: number; plans: PlanOption[];
   requestedPlan: SubscriptionPlan | null; checkoutAmountCents: number | null;
   status: 'ACTIVE' | 'PAST_DUE' | 'CANCELLED' | 'EXPIRED'; provider: string; currentPeriodStart: string; currentPeriodEnd: string;

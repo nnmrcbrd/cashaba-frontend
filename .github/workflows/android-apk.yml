@@ -1,0 +1,61 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: HTTPS Express API URL reachable from the phone
+        required: true
+        default: https://api.casha-ba.online/api
+        type: string
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'app/**'
+      - 'lib/**'
+      - 'context/**'
+      - 'services/**'
+      - 'scripts/**'
+      - 'capacitor.config.ts'
+      - 'next.config.ts'
+      - 'package*.json'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MOBILE_API_URL: ${{ inputs.api_url || 'https://api.casha-ba.online/api' }}
+      MOBILE_ALLOW_HTTP: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          set +e
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          sdk_license_status=${PIPESTATUS[1]}
+          set -e
+          test "$sdk_license_status" -eq 0
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0'
+      - run: npm ci
+      - run: node --import tsx --test --test-concurrency=2 lib/*.test.ts
+      - run: npm run android:apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: casha-ba-android-debug
+          path: mobile-artifacts/casha-ba-debug.apk
+          if-no-files-found: error
+          retention-days: 14

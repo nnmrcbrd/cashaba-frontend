@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -233,15 +234,15 @@ function TransactionModal({ mode, initial, onClose, onSave }: { mode: "expense" 
     setSaving(false);
   }
   const categories = transactionCategories(type);
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4"><form onSubmit={submit} className="w-full max-w-md rounded-3xl bg-white p-6 text-xs shadow-2xl">
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4"><ValidatedForm onSubmit={submit} className="w-full max-w-md rounded-3xl bg-white p-6 text-xs shadow-2xl">
     <h2 className="mb-1 text-lg font-bold capitalize">{initial ? "Edit" : mode === "transfer" ? "Transfer between wallets" : mode === "adjustment" ? "Adjust wallet balance" : "Record transaction"}</h2><p className="mb-5 text-gray-500">Every change will be reflected in wallet balances and retained in the audit trail.</p>
     {!initial && mode !== "transfer" && mode !== "adjustment" && <div className="mb-4 flex gap-2">{(["expense", "income"] as const).map((option) => <button key={option} type="button" onClick={() => { setType(option); setCategory(transactionCategories(option)[0]); setCustomCategory(""); }} className={`flex-1 rounded-xl py-2 font-bold capitalize ${type === option ? "bg-emerald-700 text-white" : "bg-gray-100"}`}>{option}</button>)}</div>}
-    <label className="field-label">Description</label><input value={description} onChange={(event) => setDescription(event.target.value)} required className="field-input" placeholder="What happened?" />
-    {mode !== "transfer" && mode !== "adjustment" && <><label className="field-label">Category</label><select value={category} onChange={(event) => setCategory(event.target.value)} className="field-input">{categories.map((item) => <option key={item}>{item}</option>)}<option value={CUSTOM_CATEGORY}>Enter custom category...</option></select>{category === CUSTOM_CATEGORY && <input value={customCategory} onChange={(event) => setCustomCategory(event.target.value)} required maxLength={50} autoFocus className="field-input mt-2" placeholder="Type your category" />}</>}
-    {mode === "adjustment" && <><label className="field-label">Adjustment direction</label><select value={adjustmentDirection} onChange={(event) => setAdjustmentDirection(event.target.value as typeof adjustmentDirection)} className="field-input"><option>Balance Increase</option><option>Balance Decrease</option></select></>}
-    <div className="grid grid-cols-2 gap-3"><div><label className="field-label">Amount</label><input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="field-input" /></div><div><label className="field-label">Date</label><input type="date" value={date} onChange={(event) => setDate(event.target.value)} required className="field-input" /></div></div>
+    <label className="field-label">Description</label><ValidatedInput value={description} onChange={(event) => setDescription(event.target.value)} required className="field-input" placeholder="What happened?" />
+    {mode !== "transfer" && mode !== "adjustment" && <><label className="field-label">Category</label><ValidatedSelect value={category} onChange={(event) => setCategory(event.target.value)} className="field-input">{categories.map((item) => <option key={item}>{item}</option>)}<option value={CUSTOM_CATEGORY}>Enter custom category...</option></ValidatedSelect>{category === CUSTOM_CATEGORY && <ValidatedInput value={customCategory} onChange={(event) => setCustomCategory(event.target.value)} required maxLength={50} autoFocus className="field-input mt-2" placeholder="Type your category" />}</>}
+    {mode === "adjustment" && <><label className="field-label">Adjustment direction</label><ValidatedSelect value={adjustmentDirection} onChange={(event) => setAdjustmentDirection(event.target.value as typeof adjustmentDirection)} className="field-input"><option>Balance Increase</option><option>Balance Decrease</option></ValidatedSelect></>}
+    <div className="grid grid-cols-2 gap-3"><div><label className="field-label">Amount</label><ValidatedInput type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required className="field-input" /></div><div><label className="field-label">Date</label><ValidatedInput type="date" value={date} onChange={(event) => setDate(event.target.value)} required className="field-input" /></div></div>
     <div className="mt-3"><WalletSelector value={walletId} onChange={setWalletId} label={mode === "transfer" ? "Source wallet" : "Account"} /></div>
     {mode === "transfer" && <div className="mt-3"><WalletSelector value={destinationWalletId} onChange={setDestinationWalletId} label="Destination wallet" excludeId={walletId} /></div>}
     <div className="mt-6 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border py-2.5 font-bold">Cancel</button><button type="submit" disabled={saving} className="flex-1 rounded-xl bg-emerald-700 py-2.5 font-bold text-white disabled:opacity-50">{saving ? "Saving…" : initial ? "Save changes" : "Record"}</button></div>
-  </form></div>;
+  </ValidatedForm></div>;
 }

@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import apiClient from "@/lib/apiClient";
 import Image from "next/image";
 import WalletSelector from "@/app/components/WalletSelector";
+import { ValidatedForm, ValidatedInput, ValidatedSelect } from '@/app/components/ui/ValidatedForm';
 
 interface ParsedTransaction {
   amount: number;
@@ -169,15 +170,16 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
                 <p className="text-xs">AI scanning screenshot...</p>
               </div>
             ) : parsed ? (
-              <div className="space-y-3">
+              <ValidatedForm onSubmit={event => { event.preventDefault(); void confirmLog(); }} className="space-y-3">
                 <p className="text-xs text-amber-800">Review every field. Select a date and direction if they could not be extracted.</p>
                 <label className="block text-xs">Direction
-                  <select value={parsed.transactionType || ''} onChange={event => setParsed({ ...parsed, transactionType: event.target.value as 'EXPENSE' | 'INCOME' })} className="field-input">
+                  <ValidatedSelect aria-label="GCash direction" required value={parsed.transactionType || ''} onChange={event => setParsed({ ...parsed, transactionType: event.target.value as 'EXPENSE' | 'INCOME' })} className="field-input">
                     <option value="" disabled>Choose income or expense</option><option value="EXPENSE">Expense</option><option value="INCOME">Income</option>
-                  </select>
+                  </ValidatedSelect>
                 </label>
-                <label className="block text-xs">Date<input type="date" value={parsed.date || ''} onChange={event => setParsed({ ...parsed, date: event.target.value })} className="field-input" /></label>
-                <label className="block text-xs">Description<input value={parsed.description} maxLength={200} onChange={event => setParsed({ ...parsed, description: event.target.value })} className="field-input" /></label>
+                <label className="block text-xs">Date<ValidatedInput aria-label="GCash date" required type="date" value={parsed.date || ''} onChange={event => setParsed({ ...parsed, date: event.target.value })} className="field-input" /></label>
+                <label className="block text-xs">Description<ValidatedInput aria-label="GCash description" required value={parsed.description} maxLength={200} onChange={event => setParsed({ ...parsed, description: event.target.value })} className="field-input" /></label>
+                <label className="block text-xs">Amount (₱)<ValidatedInput aria-label="GCash amount" required type="number" min="0.01" max="999999999999.99" step="0.01" value={parsed.amount} onChange={event => setParsed({ ...parsed, amount: Number(event.target.value) })} className="field-input" /></label>
                 <WalletSelector value={walletId} onChange={setWalletId} label={parsed.transactionType === 'INCOME' ? 'Account receiving funds' : 'Account charged'} />
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
                   <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Detected Transaction</p>
@@ -201,13 +203,13 @@ export default function GCashOCRUploader({ onLogSuccess }: GCashOCRUploaderProps
                   </div>
                 </div>
                 <button
-                  onClick={confirmLog}
-                  disabled={logging || !walletId || !parsed.date || !parsed.transactionType || !parsed.description.trim()}
+                  type="submit"
+                  disabled={logging}
                   className="w-full bg-[#186849] hover:bg-[#13543b] disabled:opacity-50 text-white text-xs font-bold py-2.5 rounded-xl transition"
                 >
                   {logging ? "Logging..." : "✅ Confirm & Log Transaction"}
                 </button>
-              </div>
+              </ValidatedForm>
             ) : null}
           </div>
         </div>

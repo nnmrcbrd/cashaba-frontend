@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -60,10 +61,10 @@ export default function LoginForm() {
           {notice}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate autoComplete="off">
+      <ValidatedForm onSubmit={handleSubmit} className="space-y-4" noValidate autoComplete="off">
         <div>
           <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700">Email address</label>
-          <input
+          <ValidatedInput
             id="email"
             type="email"
             value={email}
@@ -79,7 +80,6 @@ export default function LoginForm() {
                 : "border-slate-300 focus:border-[#0b6b4f] focus:ring-emerald-600/10"
             }`}
           />
-          {emailTouched && !emailValid && <p className="mt-1.5 text-xs text-red-600">Enter a valid email address.</p>}
         </div>
 
         <div>
@@ -97,11 +97,11 @@ export default function LoginForm() {
           </div>
         )}
 
-        <button type="submit" disabled={loading || !email || !password} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white transition hover:bg-[#084f3b] disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="submit" disabled={loading} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white transition hover:bg-[#084f3b] disabled:cursor-not-allowed disabled:opacity-60">
           {loading ? "Signing in..." : "Sign in"}
           {!loading && <ArrowRight size={17} />}
         </button>
-      </form>
+      </ValidatedForm>
     </>
   );
 }

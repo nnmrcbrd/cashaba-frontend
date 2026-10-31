@@ -1,4 +1,5 @@
 "use client";
+import { ValidatedForm, ValidatedInput } from "@/app/components/ui/ValidatedForm";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -87,18 +88,18 @@ export function EmailOtpForm({ purpose, initialEmail = "", initialChallengeId = 
   return <div className="space-y-5">
     {challengeId ? <>
       <div role="status" className="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900"><Mail size={18} className="mt-1 shrink-0" /><p>{purpose === "recovery" ? "If an eligible account exists, check your inbox for" : "Check your inbox for"} the six-digit code for <strong>{email}</strong>. It expires in 10 minutes. Check your spam folder too.</p></div>
-      <form onSubmit={verifyCode} className="space-y-4">
+      <ValidatedForm onSubmit={verifyCode} className="space-y-4">
         <label htmlFor="emailOtp" className="block text-sm font-semibold text-slate-700">Verification code
-          <input id="emailOtp" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required placeholder="000000" className="mt-2 h-14 w-full rounded-xl border border-slate-300 px-4 text-center text-2xl tracking-[0.5em] outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
+          <ValidatedInput id="emailOtp" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required placeholder="000000" className="mt-2 h-14 w-full rounded-xl border border-slate-300 px-4 text-center text-2xl tracking-[0.5em] outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" />
         </label>
         <button disabled={loading || verificationCountdown > 0 || code.length !== 6} className="h-12 w-full rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white hover:bg-[#084f3b] disabled:opacity-60">{loading ? "Verifying…" : verificationCountdown > 0 ? `Try again in ${formatWait(verificationCountdown)}` : purpose === "recovery" ? "Verify code and continue" : "Verify email"}</button>
-      </form>
+      </ValidatedForm>
       <button type="button" onClick={() => void requestCode()} disabled={loading || countdown > 0} className="w-full text-center text-sm font-semibold text-[#0b6b4f] disabled:text-slate-500">{countdown > 0 ? `Resend code in ${formatWait(countdown)}` : "Resend code"}</button>
       <button type="button" disabled={loading} onClick={() => { setChallengeId(""); setCode(""); setError(""); }} className="w-full text-center text-sm text-slate-600">Use another email</button>
-    </> : <form onSubmit={requestCode} className="space-y-5">
-      <label htmlFor="otpEmail" className="block text-sm font-semibold text-slate-700">Email address<input id="otpEmail" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" className="mt-2 h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" /></label>
+    </> : <ValidatedForm onSubmit={requestCode} className="space-y-5">
+      <label htmlFor="otpEmail" className="block text-sm font-semibold text-slate-700">Email address<ValidatedInput id="otpEmail" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required placeholder="you@example.com" className="mt-2 h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-[#0b6b4f] focus:ring-4 focus:ring-emerald-600/10" /></label>
       <button disabled={loading || countdown > 0} className="h-12 w-full rounded-xl bg-[#0b6b4f] text-sm font-semibold text-white hover:bg-[#084f3b] disabled:opacity-60">{loading ? "Requesting code…" : countdown > 0 ? `Try again in ${formatWait(countdown)}` : "Send verification code"}</button>
-    </form>}
+    </ValidatedForm>}
     {error && <div role="alert" className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle size={16} className="shrink-0" />{error}</div>}
     <Link href={ROUTES.LOGIN} className="block text-center text-sm font-semibold text-slate-500 hover:text-[#0b6b4f]">Back to sign in</Link>
   </div>;

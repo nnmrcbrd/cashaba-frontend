@@ -32,12 +32,12 @@ export function LandingAccountLink({ className, guestLabel = "Create account", a
 
 export default function LandingAuthActions({ variant = "header" }: { variant?: "header" | "footer" }) {
   const { isAuthenticated, loading, dashboardHref } = useLandingSession();
-  const primaryClass = variant === "footer" ? "hover:text-white" : "whitespace-nowrap rounded-full bg-[#17694d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10583f] active:scale-[0.98] sm:px-5";
+  const primaryClass = variant === "footer" ? "hover:text-white" : "shrink-0 whitespace-nowrap rounded-full bg-[#17694d] px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-[#10583f] active:scale-[0.98] sm:px-5 sm:text-sm";
   if (loading) return <button type="button" disabled aria-busy="true" className={primaryClass}>Loading…</button>;
   if (isAuthenticated) return <Link href={dashboardHref} className={primaryClass}>Open dashboard</Link>;
   return (
     <>
-      <Link href={ROUTES.LOGIN} className={variant === "footer" ? "hover:text-white" : "rounded-full px-3 py-2 text-sm font-semibold text-[#20382f] transition hover:bg-[#e5ebe5] active:scale-[0.98] dark:text-[#dce8e1] dark:hover:bg-white/10 sm:px-4"}>Sign in</Link>
+      <Link href={ROUTES.LOGIN} className={variant === "footer" ? "hover:text-white" : "shrink-0 whitespace-nowrap rounded-full px-2 py-2 text-xs font-semibold text-[#20382f] transition hover:bg-[#e5ebe5] active:scale-[0.98] dark:text-[#dce8e1] dark:hover:bg-white/10 sm:px-4 sm:text-sm"}>Sign in</Link>
       <Link href={ROUTES.SIGNUP} className={primaryClass}>Create account</Link>
     </>
   );
